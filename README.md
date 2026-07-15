@@ -1,19 +1,42 @@
-# verikube
+# VeriKube
 
-Declarative network checks for Kubernetes.
+> Declarative network checks for Kubernetes.
 
-verikube is an operator that runs network reachability checks (TCP / HTTP /
+![License](https://img.shields.io/badge/license-Apache--2.0-blue)
+![Go](https://img.shields.io/badge/go-1.26-00ADD8?logo=go&logoColor=white)
+![Kubernetes](https://img.shields.io/badge/kubernetes-operator-326CE5?logo=kubernetes&logoColor=white)
+
+VeriKube is an operator that runs network reachability checks (TCP / HTTP /
 gRPC) from pods placed on the nodes you choose, and manages the whole lifecycle —
 definition, scheduling, execution, results — as Kubernetes resources.
 
+```mermaid
+flowchart LR
+    CS["📋 CheckSuite<br/><i>what · from where · when</i><br/>lives in Git"]
+    CR["🏃 CheckRun<br/><i>one execution</i><br/>results in .status"]
+    JOB["Job per runner"]
+    POD["runner pods<br/><i>nodeSelector · tolerations · spread</i>"]
+    TGT["🎯 targets<br/>TCP / HTTP / gRPC"]
+
+    CS -- "cron schedule /<br/>run-now annotation" --> CR
+    CR -- creates --> JOB
+    JOB --> POD
+    POD -- probe --> TGT
+    POD -. "report results (SSA)" .-> CR
+
+    style CS fill:#e8f0fe,stroke:#4285f4,color:#1a1a2e
+    style CR fill:#e6f4ea,stroke:#34a853,color:#1a1a2e
+    style TGT fill:#fef7e0,stroke:#fbbc04,color:#1a1a2e
 ```
-CheckSuite (declare)  ──schedule / run-now──▶  CheckRun (execute)
-      │                                            │
-      │ what to check, from where, when            │ Job per runner → runner pods
-      │                                            │ results in .status
-      ▼                                            ▼
-   GitOps-friendly                            kubectl get checkrun
-```
+
+## ✨ Features
+
+- **Declarative & GitOps-friendly** — checks are CRDs; suites live in Git, results live in `.status`
+- **Run from where it matters** — place runner pods with `nodeSelector` / `tolerations` / `topologySpread`
+- **Three probe types** — TCP connect, HTTP (status / headers), gRPC Health Checking Protocol
+- **Negative tests** — assert that a connection **fails** (`expect: Failure`), e.g. to verify security groups
+- **Cron scheduling + run-now** — standard 5-field cron, or trigger ad hoc with one annotation
+- **Prometheus metrics** — per-suite and per-check result counters, run durations
 
 ## Why
 
@@ -34,6 +57,26 @@ Typical questions this answers continuously, instead of via one-off debugging:
 A **runner** is a set of pods (a Job) placed with `nodeSelector` /
 `tolerations` / `topologySpread`, executing the checks assigned to it.
 Checks run from every runner by default; restrict one with `checks[].runners`.
+
+### Lifecycle of a run
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant T as ⏰ Cron tick /<br/>run-now annotation
+    participant O as Operator
+    participant CR as CheckRun
+    participant J as Runner Jobs
+    participant P as Runner pods
+
+    T->>O: trigger
+    O->>CR: create (immutable snapshot of suite spec)
+    O->>J: create one Job per runner
+    J->>P: schedule pods on selected nodes
+    P->>P: execute TCP / HTTP / gRPC checks
+    P-->>CR: patch .status (server-side apply)
+    O->>CR: aggregate → Succeeded / Failed / Error
+```
 
 ## Example
 
