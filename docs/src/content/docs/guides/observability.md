@@ -119,8 +119,9 @@ groups:
 
       # Set the threshold to ~2x your longest schedule interval.
       # Note: this only covers suites that have produced results at least
-      # once — the gauge does not exist before the first completed run, so
-      # pair it with VerikubeRunErrors to catch suites that never succeed.
+      # once — the gauge does not exist before the first completed run.
+      # VerikubeRunErrors below catches runs erroring within its window;
+      # a suite that has never run at all is visible to neither.
       - alert: VerikubeSuiteStale
         expr: time() - verikube_checkrun_last_completion_timestamp_seconds > 3600
         labels: { severity: warning }

@@ -17,8 +17,8 @@ writing schedules.
 may still fire: the most recent missed tick still within the deadline
 fires (late), anything older is skipped. So:
 
-- unsuspending a suite does not fire catch-up runs for the suspended
-  window (at most the last tick, if it missed by under 200s),
+- unsuspending a suite does not replay the suspended window — at most
+  the final tick fires, and only if it was missed by under 200s,
 - restarting the operator does not fire a burst of runs for ticks missed
   while it was down.
 

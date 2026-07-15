@@ -99,9 +99,10 @@ groups:
           summary: "Check {{ $labels.check }} in {{ $labels.namespace }}/{{ $labels.suite }} is failing"
 
       # 閾値は最長のスケジュール間隔の約 2 倍に。
-      # 注意: この式は一度でも結果を出したスイートしかカバーしません —
-      # gauge は初回の完了 run まで存在しないため、一度も成功しない
-      # スイートは VerikubeRunErrors と組み合わせて検知してください。
+      # 注意: この式は一度でも結果を出したスイートしかカバーしません
+      # (gauge は初回の完了 run まで存在しません)。下の VerikubeRunErrors
+      # は「ウィンドウ内に Error になった run」を検知します。一度も run が
+      # 走っていないスイートはどちらにも映りません。
       - alert: VerikubeSuiteStale
         expr: time() - verikube_checkrun_last_completion_timestamp_seconds > 3600
         labels: { severity: warning }

@@ -5,11 +5,11 @@ description: The trust boundary, runner pod privileges, local-target blocking an
 
 ## The trust boundary is RBAC on CheckSuite/CheckRun create
 
-Whoever can create a CheckSuite can probe arbitrary addresses from
-arbitrarily placed pods — **that is the tool's purpose**. (The one
-exception: local targets are blocked by default, see below.) There is no
-allowlist of targets inside the suite spec; the control is *who may create
-suites, and where*.
+Whoever can create a CheckSuite (or a CheckRun directly, for ad hoc runs)
+can probe arbitrary addresses from arbitrarily placed pods —
+**that is the tool's purpose**. (The one exception: local targets are
+blocked by default, see below.) There is no allowlist of targets inside
+the suite spec; the control is *who may create suites, and where*.
 
 Grant the CRD roles per namespace, deliberately:
 
