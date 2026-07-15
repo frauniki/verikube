@@ -21,6 +21,8 @@ reviews:
     - "!charts/verikube/templates/crds/**"
     - "!go.sum"
     - "!bin/**"
+    - "!docs/src/content/docs/reference/api.md"
+    - "!docs/package-lock.json"
 
   path_instructions:
     - path: "api/v1alpha1/**"
@@ -58,8 +60,17 @@ reviews:
     - path: ".github/workflows/**"
       instructions: |
         コミットメッセージは Conventional Commits(release-please が
-        バージョニングに使用)。action は SHA ではなくバージョンタグで
-        固定している方針。
+        バージョニングに使用)。action は commit SHA + バージョンコメント
+        (`uses: owner/repo@<sha> # vX.Y.Z`)で固定している方針。
+        タグ参照を見つけたら指摘する。
+    - path: "docs/**"
+      instructions: |
+        Astro Starlight のドキュメントサイト(en/ja の i18n)。英語ページ
+        (docs/src/content/docs/ 直下)を変更した PR では、対応する
+        docs/src/content/docs/ja/ の同名ページも更新されているか確認する
+        (未翻訳化する場合は ja 側を削除してフォールバックに戻すのが正)。
+        内部リンクは base prefix(/verikube/)付きの絶対パスで書く。
+        reference/api.md は生成物(make api-docs)なので手編集を指摘する。
 
   tools:
     golangci-lint:

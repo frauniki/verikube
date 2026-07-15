@@ -58,11 +58,13 @@ type TCPCheck struct {
 
 // HTTPHeader is a header to send with an HTTP check request.
 type HTTPHeader struct {
+	// name of the header.
 	// +kubebuilder:validation:MinLength=1
 	// +kubebuilder:validation:MaxLength=256
 	// +required
 	Name string `json:"name"`
 
+	// value of the header.
 	// +kubebuilder:validation:MaxLength=2048
 	// +required
 	Value string `json:"value"`
@@ -77,6 +79,7 @@ type HTTPCheck struct {
 	// +required
 	URL string `json:"url"`
 
+	// method of the request. Defaults to GET.
 	// +kubebuilder:validation:Enum=GET;HEAD;POST;PUT;PATCH;DELETE;OPTIONS
 	// +kubebuilder:default=GET
 	// +optional
@@ -155,6 +158,7 @@ type RetryPolicy struct {
 // CheckSpec defines a single network check. Exactly one probe type must be set.
 // +kubebuilder:validation:XValidation:rule="[has(self.tcp), has(self.http), has(self.grpc)].filter(x, x).size() == 1",message="exactly one of tcp, http or grpc must be set"
 type CheckSpec struct {
+	// name identifies the check within the suite and in results and metrics.
 	// +kubebuilder:validation:MaxLength=63
 	// +kubebuilder:validation:Pattern=`^[a-z0-9]([-a-z0-9]*[a-z0-9])?$`
 	// +required
@@ -168,12 +172,15 @@ type CheckSpec struct {
 	// +optional
 	Runners []string `json:"runners,omitempty"`
 
+	// tcp probes an endpoint by establishing a TCP connection.
 	// +optional
 	TCP *TCPCheck `json:"tcp,omitempty"`
 
+	// http probes an HTTP(S) endpoint and verifies the response status.
 	// +optional
 	HTTP *HTTPCheck `json:"http,omitempty"`
 
+	// grpc probes a server using the gRPC Health Checking Protocol.
 	// +optional
 	GRPC *GRPCCheck `json:"grpc,omitempty"`
 
@@ -183,6 +190,8 @@ type CheckSpec struct {
 	// +optional
 	Expect ExpectedOutcome `json:"expect,omitempty"`
 
+	// retries re-runs the check when its observed outcome does not match
+	// the expected one.
 	// +optional
 	Retries *RetryPolicy `json:"retries,omitempty"`
 }
@@ -190,11 +199,15 @@ type CheckSpec struct {
 // TopologySpread spreads runner pods across a topology domain. It is
 // rendered as a maxSkew=1 topologySpreadConstraint on the runner Job.
 type TopologySpread struct {
+	// topologyKey is the node label defining the domains to spread across.
+	// Defaults to topology.kubernetes.io/zone.
 	// +kubebuilder:validation:MaxLength=316
 	// +kubebuilder:default=`topology.kubernetes.io/zone`
 	// +optional
 	TopologyKey string `json:"topologyKey,omitempty"`
 
+	// whenUnsatisfiable controls scheduling when the spread cannot be
+	// satisfied. Defaults to ScheduleAnyway.
 	// +kubebuilder:validation:Enum=ScheduleAnyway;DoNotSchedule
 	// +kubebuilder:default=ScheduleAnyway
 	// +optional
@@ -204,6 +217,7 @@ type TopologySpread struct {
 // RunnerSpec defines where checks execute from: a set of pods created with
 // the given scheduling constraints.
 type RunnerSpec struct {
+	// name identifies the runner within the suite and in checks[].runners.
 	// +kubebuilder:validation:MaxLength=30
 	// +kubebuilder:validation:Pattern=`^[a-z0-9]([-a-z0-9]*[a-z0-9])?$`
 	// +required
@@ -217,15 +231,18 @@ type RunnerSpec struct {
 	// +optional
 	Replicas *int32 `json:"replicas,omitempty"`
 
+	// nodeSelector restricts runner pods to nodes with these labels.
 	// +kubebuilder:validation:MaxProperties=16
 	// +optional
 	NodeSelector map[string]string `json:"nodeSelector,omitempty"`
 
+	// tolerations let runner pods schedule onto tainted nodes.
 	// +kubebuilder:validation:MaxItems=16
 	// +listType=atomic
 	// +optional
 	Tolerations []corev1.Toleration `json:"tolerations,omitempty"`
 
+	// topologySpread spreads runner pods across a topology domain.
 	// +optional
 	TopologySpread *TopologySpread `json:"topologySpread,omitempty"`
 }
@@ -242,6 +259,8 @@ type CheckSuiteTemplate struct {
 	// +required
 	Runners []RunnerSpec `json:"runners"`
 
+	// checks define what to probe. Each check runs from every runner
+	// unless it names specific ones in its runners field.
 	// +kubebuilder:validation:MinItems=1
 	// +kubebuilder:validation:MaxItems=128
 	// +listType=map

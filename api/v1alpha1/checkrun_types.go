@@ -67,6 +67,7 @@ type CheckRunSpec struct {
 
 // CheckResult is the outcome of one check from one runner pod.
 type CheckResult struct {
+	// name of the check this result belongs to.
 	// +kubebuilder:validation:MaxLength=63
 	// +required
 	Name string `json:"name"`
@@ -83,10 +84,13 @@ type CheckResult struct {
 	// +optional
 	Attempts int32 `json:"attempts,omitempty"`
 
+	// message is a human-readable explanation of the outcome, e.g. the
+	// dial error for a failed TCP check.
 	// +kubebuilder:validation:MaxLength=1024
 	// +optional
 	Message string `json:"message,omitempty"`
 
+	// duration the probe took, last attempt only.
 	// +optional
 	Duration *metav1.Duration `json:"duration,omitempty"`
 }
@@ -95,20 +99,25 @@ type CheckResult struct {
 // Each pod applies exactly its own entry via server-side apply, so entries
 // never conflict between pods.
 type PodResult struct {
+	// podName of the reporting runner pod.
 	// +kubebuilder:validation:MaxLength=253
 	// +required
 	PodName string `json:"podName"`
 
+	// nodeName the pod ran on.
 	// +kubebuilder:validation:MaxLength=253
 	// +optional
 	NodeName string `json:"nodeName,omitempty"`
 
+	// startTime of check execution in this pod.
 	// +optional
 	StartTime *metav1.Time `json:"startTime,omitempty"`
 
+	// completionTime of check execution in this pod.
 	// +optional
 	CompletionTime *metav1.Time `json:"completionTime,omitempty"`
 
+	// checks holds one result per check executed by this pod.
 	// +kubebuilder:validation:MaxItems=128
 	// +listType=map
 	// +listMapKey=name
@@ -118,10 +127,12 @@ type PodResult struct {
 
 // RunnerStatus groups pod results per runner.
 type RunnerStatus struct {
+	// name of the runner as defined in the suite.
 	// +kubebuilder:validation:MaxLength=30
 	// +required
 	Name string `json:"name"`
 
+	// pods holds the result set reported by each runner pod.
 	// +kubebuilder:validation:MaxItems=64
 	// +listType=map
 	// +listMapKey=podName
@@ -131,10 +142,13 @@ type RunnerStatus struct {
 
 // RunSummary is a controller-owned aggregate over all reported results.
 type RunSummary struct {
+	// total number of reported check results across all pods.
 	// +optional
 	Total int32 `json:"total,omitempty"`
+	// passed is the number of results whose verdict was pass.
 	// +optional
 	Passed int32 `json:"passed,omitempty"`
+	// failed is the number of results whose verdict was fail.
 	// +optional
 	Failed int32 `json:"failed,omitempty"`
 }
@@ -145,15 +159,20 @@ type RunSummary struct {
 // their own entry under runners[].pods[]; the controller applies everything
 // else and never touches runners[].
 type CheckRunStatus struct {
+	// observedGeneration is the run generation most recently reconciled.
 	// +optional
 	ObservedGeneration int64 `json:"observedGeneration,omitempty"`
 
+	// phase summarizes the run lifecycle: Pending, Running, Succeeded,
+	// Failed or Error.
 	// +optional
 	Phase CheckRunPhase `json:"phase,omitempty"`
 
+	// startTime is when the controller created the runner Jobs.
 	// +optional
 	StartTime *metav1.Time `json:"startTime,omitempty"`
 
+	// completionTime is when the run reached a terminal phase.
 	// +optional
 	CompletionTime *metav1.Time `json:"completionTime,omitempty"`
 
@@ -164,9 +183,12 @@ type CheckRunStatus struct {
 	// +optional
 	Runners []RunnerStatus `json:"runners,omitempty"`
 
+	// summary aggregates pass/fail counts over all reported results.
 	// +optional
 	Summary *RunSummary `json:"summary,omitempty"`
 
+	// conditions describe the run's current state, e.g. Completed,
+	// DeadlineExceeded or RunnerServiceAccountMissing.
 	// +listType=map
 	// +listMapKey=type
 	// +optional

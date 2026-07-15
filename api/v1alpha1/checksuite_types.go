@@ -42,12 +42,14 @@ const (
 
 // HistoryLimit bounds how many finished CheckRuns are kept per suite.
 type HistoryLimit struct {
+	// successful is how many Succeeded runs to keep. Defaults to 3.
 	// +kubebuilder:validation:Minimum=0
 	// +kubebuilder:default=3
 	// +optional
 	Successful *int32 `json:"successful,omitempty"`
 
-	// failed also covers runs that ended in Error.
+	// failed is how many Failed runs to keep; it also covers runs that
+	// ended in Error. Defaults to 5.
 	// +kubebuilder:validation:Minimum=0
 	// +kubebuilder:default=5
 	// +optional
@@ -70,6 +72,9 @@ type CheckSuiteSpec struct {
 	// +optional
 	Suspend *bool `json:"suspend,omitempty"`
 
+	// concurrencyPolicy describes how to treat a new run while a previous
+	// one is still active: Allow, Forbid (skip the new run, default) or
+	// Replace (delete the active run first).
 	// +kubebuilder:default=Forbid
 	// +optional
 	ConcurrencyPolicy ConcurrencyPolicy `json:"concurrencyPolicy,omitempty"`
@@ -80,6 +85,7 @@ type CheckSuiteSpec struct {
 	// +optional
 	StartingDeadline *metav1.Duration `json:"startingDeadline,omitempty"`
 
+	// historyLimit bounds how many finished CheckRuns are kept.
 	// +optional
 	HistoryLimit *HistoryLimit `json:"historyLimit,omitempty"`
 
@@ -88,6 +94,7 @@ type CheckSuiteSpec struct {
 
 // CheckSuiteStatus defines the observed state of CheckSuite.
 type CheckSuiteStatus struct {
+	// observedGeneration is the suite generation most recently reconciled.
 	// +optional
 	ObservedGeneration int64 `json:"observedGeneration,omitempty"`
 
@@ -108,6 +115,8 @@ type CheckSuiteStatus struct {
 	// +optional
 	Active []corev1.ObjectReference `json:"active,omitempty"`
 
+	// conditions describe the suite's current state, e.g.
+	// RunnerServiceAccountMissing.
 	// +listType=map
 	// +listMapKey=type
 	// +optional

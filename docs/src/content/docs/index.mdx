@@ -1,0 +1,74 @@
+---
+title: VeriKube
+description: Declarative network checks for Kubernetes — define, schedule and read TCP/HTTP/gRPC reachability checks as Kubernetes resources.
+template: splash
+hero:
+  tagline: Declarative network checks for Kubernetes. Probe TCP, HTTP and gRPC endpoints from pods placed on the nodes you choose — and manage the whole lifecycle as Kubernetes resources.
+  actions:
+    - text: Get started
+      link: /verikube/getting-started/quickstart/
+      icon: right-arrow
+    - text: View on GitHub
+      link: https://github.com/frauniki/verikube
+      icon: external
+      variant: minimal
+---
+
+import { Card, CardGrid, LinkCard } from '@astrojs/starlight/components';
+
+## Features
+
+<CardGrid stagger>
+	<Card title="Declarative & GitOps-friendly" icon="seti:git">
+		Checks are CRDs: suites live in Git, results live in `.status`. No
+		external state, no separate database.
+	</Card>
+	<Card title="Run from where it matters" icon="setting">
+		Place runner pods with `nodeSelector`, `tolerations` and
+		`topologySpread` — verify reachability from the exact nodes your
+		workloads run on.
+	</Card>
+	<Card title="Three probe types" icon="puzzle">
+		TCP connect, HTTP (status codes and headers), and the standard gRPC
+		Health Checking Protocol.
+	</Card>
+	<Card title="Negative tests" icon="warning">
+		Assert that a connection **fails** with `expect: Failure` — verify
+		that security groups and network policies actually block traffic.
+	</Card>
+	<Card title="Cron scheduling + run-now" icon="pencil">
+		Standard 5-field cron schedules, or trigger a run ad hoc with a
+		single annotation.
+	</Card>
+	<Card title="Prometheus metrics" icon="magnifier">
+		Live pass/fail state per check, probe latency histograms and run
+		counters — Grafana-ready out of the box.
+	</Card>
+</CardGrid>
+
+## What it answers
+
+Continuously, instead of via one-off debugging:
+
+<CardGrid>
+	<LinkCard
+		title="Can pods on nodegroup X reach the database?"
+		description="TCP checks from runner pods pinned to specific nodes."
+		href="/verikube/guides/writing-checks/"
+	/>
+	<LinkCard
+		title="Does the LB-fronted endpoint answer 200 with the right Host header?"
+		description="HTTP checks with custom headers and expected status codes."
+		href="/verikube/guides/writing-checks/"
+	/>
+	<LinkCard
+		title="Do gRPC backends report SERVING?"
+		description="Checks using the standard gRPC Health Checking Protocol."
+		href="/verikube/guides/writing-checks/"
+	/>
+	<LinkCard
+		title="Is the security group actually blocking what it should?"
+		description="Negative tests: a check that passes only when the connection fails."
+		href="/verikube/guides/writing-checks/"
+	/>
+</CardGrid>

@@ -1,0 +1,6 @@
+processor:
+  ignoreFields:
+    - "TypeMeta$"
+render:
+  # Match ENVTEST_K8S_VERSION in the Makefile.
+  kubernetesVersion: "1.36"

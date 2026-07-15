@@ -1,11 +1,14 @@
-# Observability: check results in Prometheus & Grafana
+---
+title: Observability
+description: Exposing check results as Prometheus metrics and visualizing them in Grafana.
+---
 
 VeriKube's data flow keeps scraping simple: runner pods report results into
 the CheckRun's `.status` (server-side apply), and the operator turns
 completed runs into Prometheus metrics on its own `/metrics` endpoint.
 Runner pods are short-lived Job pods and expose no metrics themselves.
 
-```text
+```
 runner pods ──SSA──▶ CheckRun .status ──▶ operator /metrics ──scrape──▶ Prometheus ──▶ Grafana
 ```
 
