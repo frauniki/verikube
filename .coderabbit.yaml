@@ -22,7 +22,7 @@ reviews:
     - "!go.sum"
     - "!bin/**"
     - "!docs/src/content/docs/reference/api.md"
-    - "!docs/package-lock.json"
+    - "!docs/pnpm-lock.yaml"
 
   path_instructions:
     - path: "api/v1alpha1/**"
