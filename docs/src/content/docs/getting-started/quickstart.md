@@ -28,18 +28,16 @@ kind load docker-image verikube:dev --name verikube
 
 ## 2. Install the operator
 
+`checkNamespaces` lists every namespace that will host CheckSuites — the chart provisions the runner ServiceAccount and RoleBinding there, so the namespace has to exist first. We'll use a `demo` namespace:
+
 ```bash
+kubectl create namespace demo
+
 helm install verikube ./charts/verikube \
   --namespace verikube-system --create-namespace \
   --set image.repository=verikube \
   --set image.tag=dev \
   --set checkNamespaces='{demo}'
-```
-
-`checkNamespaces` lists every namespace that will host CheckSuites — the chart provisions the runner ServiceAccount and RoleBinding there. We'll use a `demo` namespace:
-
-```bash
-kubectl create namespace demo
 ```
 
 ## 3. Create a CheckSuite

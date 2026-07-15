@@ -34,7 +34,7 @@ Checks targeting loopback or link-local addresses — including cloud metadata e
 
 ## Residual risk: status writes within check namespaces
 
-Within a namespace listed in `checkNamespaces`, anything with pod-create rights can mount the runner ServiceAccount and patch any CheckRun's status there. VeriKube cannot prevent this (the ServiceAccount must exist for runners to report), but it detects it: the controller emits `ForeignResultEntry` warning events for result entries whose pod names don't match its own Jobs.
+Within a namespace listed in `checkNamespaces`, anything with pod-create rights can mount the runner ServiceAccount and patch any CheckRun's status there. VeriKube cannot prevent this (the ServiceAccount must exist for runners to report), but it flags it: the controller emits `ForeignResultEntry` warning events for result entries whose pod names don't match its Jobs' naming. This is a best-effort heuristic — a writer that mimics the expected pod-name prefix evades it — not tamper-proof detection.
 
 Treat pod-create rights in check namespaces as implying "can write check results", and scope `checkNamespaces` accordingly.
 

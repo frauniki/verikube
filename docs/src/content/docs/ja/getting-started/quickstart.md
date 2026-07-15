@@ -28,18 +28,16 @@ kind load docker-image verikube:dev --name verikube
 
 ## 2. operator をインストール
 
+`checkNamespaces` には CheckSuite を置くすべての namespace を列挙します — chart がそこに runner の ServiceAccount と RoleBinding を作成するため、namespace は先に存在している必要があります。ここでは `demo` namespace を使います:
+
 ```bash
+kubectl create namespace demo
+
 helm install verikube ./charts/verikube \
   --namespace verikube-system --create-namespace \
   --set image.repository=verikube \
   --set image.tag=dev \
   --set checkNamespaces='{demo}'
-```
-
-`checkNamespaces` には CheckSuite を置くすべての namespace を列挙します — chart がそこに runner の ServiceAccount と RoleBinding を用意します。ここでは `demo` namespace を使います:
-
-```bash
-kubectl create namespace demo
 ```
 
 ## 3. CheckSuite を作成

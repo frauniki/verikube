@@ -13,7 +13,7 @@ Cron expressions are standard 5-field cron, evaluated in **UTC**. There is no pe
 
 `startingDeadline` (default 200s) bounds how late a missed scheduled tick may still fire: the most recent missed tick still within the deadline fires (late), anything older is skipped. So:
 
-- unsuspending a suite does not replay the suspended window — at most the final tick fires, and only if it was missed by under 200s,
+- unsuspending a suite does not replay the suspended window — at most the final tick fires, and only if it was missed by less than the configured `startingDeadline`,
 - restarting the operator does not fire a burst of runs for ticks missed while it was down.
 
 Beyond that, the suite resumes at its next regular tick.
