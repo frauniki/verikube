@@ -148,10 +148,12 @@ $ kubectl get checkrun payment-network-1784112900 -o yaml
 ## Install
 
 ```bash
-helm install verikube ./charts/verikube \
+helm install verikube oci://ghcr.io/frauniki/charts/verikube \
   --namespace verikube-system --create-namespace \
   --set checkNamespaces='{payment,batch}'
 ```
+
+(From a local checkout, use `./charts/verikube` instead of the OCI reference.)
 
 `checkNamespaces` lists every namespace that will host CheckSuites: the
 chart provisions the runner ServiceAccount + RoleBinding there. A suite in
