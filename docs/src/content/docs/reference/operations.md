@@ -14,14 +14,15 @@ writing schedules.
 ## Missed ticks are dropped, not replayed
 
 `startingDeadline` (default 200s) bounds how late a missed scheduled tick
-may still fire. Anything older is skipped, so:
+may still fire: the most recent missed tick still within the deadline
+fires (late), anything older is skipped. So:
 
 - unsuspending a suite does not fire catch-up runs for the suspended
-  window,
+  window (at most the last tick, if it missed by under 200s),
 - restarting the operator does not fire a burst of runs for ticks missed
   while it was down.
 
-The suite simply resumes at its next regular tick.
+Beyond that, the suite resumes at its next regular tick.
 
 ## Operator upgrades are safe with runs in flight
 

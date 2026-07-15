@@ -10,14 +10,14 @@ opposed to `Failed`, where checks ran and something was unreachable. Look
 at the run's conditions first:
 
 ```bash
-kubectl get checkrun <name> -o jsonpath='{.status.conditions}' | jq
+kubectl get checkrun <name> -o json | jq '.status.conditions'
 ```
 
 | Condition / cause | Meaning | Fix |
 |---|---|---|
 | `RunnerServiceAccountMissing` | The runner ServiceAccount does not exist in the suite's namespace | Add the namespace to the chart's `checkNamespaces` value and `helm upgrade` |
-| `DeadlineExceeded` | The run exceeded `spec.timeout` (default 10m) | Raise `timeout`, or check why runner pods were slow/unschedulable (`kubectl describe job`) |
-| Runner Job failed | Pods couldn't be scheduled or crashed | `kubectl describe job -n <ns>` — typically a `nodeSelector` matching no nodes, or missing tolerations for tainted nodes |
+| `DeadlineExceeded` | The run exceeded `spec.timeout` (default 10m) | Raise `timeout`, or check why runner pods were slow/unschedulable (`kubectl describe jobs -n <ns>`) |
+| Runner Job failed | Pods couldn't be scheduled or crashed | `kubectl describe jobs -n <ns>` — typically a `nodeSelector` matching no nodes, or missing tolerations for tainted nodes |
 
 `Error` runs produce **no check results**, so the state gauges
 (`verikube_check_last_result`) keep their previous values. Alert on

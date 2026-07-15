@@ -86,9 +86,12 @@ pass します:
     address: "payments.internal:50051"
     service: payments.v1.Payments   # 省略でサーバー全体の health
     timeout: 5s                     # デフォルト 5s
-    tls:                            # 省略で平文
-      insecureSkipVerify: true
+    tls: {}                         # 証明書検証ありの TLS。省略で平文
 ```
+
+自己署名証明書の内部エンドポイント向けに `tls` は
+`insecureSkipVerify: true` も受け付けますが、可能なら CA を正しく信頼
+させる方を選んでください。
 
 ## ネガティブテスト
 

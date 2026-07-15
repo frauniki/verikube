@@ -8,7 +8,7 @@ the CheckRun's `.status` (server-side apply), and the operator turns
 completed runs into Prometheus metrics on its own `/metrics` endpoint.
 Runner pods are short-lived Job pods and expose no metrics themselves.
 
-```
+```text
 runner pods ──SSA──▶ CheckRun .status ──▶ operator /metrics ──scrape──▶ Prometheus ──▶ Grafana
 ```
 
@@ -91,7 +91,7 @@ sum by (namespace, suite, check)
   (rate(verikube_check_result_total{result="fail"}[$__rate_interval]))
 
 # Probe latency p50 / p95 / p99
-histogram_quantile(0.95, sum by (check, le)
+histogram_quantile(0.95, sum by (namespace, suite, check, le)
   (rate(verikube_check_duration_seconds_bucket[$__rate_interval])))
 
 # Runs per hour by phase (stacked)
@@ -118,6 +118,9 @@ groups:
           summary: "Check {{ $labels.check }} in {{ $labels.namespace }}/{{ $labels.suite }} is failing"
 
       # Set the threshold to ~2x your longest schedule interval.
+      # Note: this only covers suites that have produced results at least
+      # once — the gauge does not exist before the first completed run, so
+      # pair it with VerikubeRunErrors to catch suites that never succeed.
       - alert: VerikubeSuiteStale
         expr: time() - verikube_checkrun_last_completion_timestamp_seconds > 3600
         labels: { severity: warning }

@@ -86,9 +86,12 @@ A gRPC check uses the standard
     address: "payments.internal:50051"
     service: payments.v1.Payments   # omit to query overall server health
     timeout: 5s                     # default 5s
-    tls:                            # omit for plaintext
-      insecureSkipVerify: true
+    tls: {}                         # TLS with certificate verification; omit for plaintext
 ```
+
+For internal endpoints with self-signed certificates, `tls` accepts
+`insecureSkipVerify: true` — prefer trusting the CA properly where you
+can.
 
 ## Negative tests
 

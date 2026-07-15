@@ -6,7 +6,8 @@ description: The trust boundary, runner pod privileges, local-target blocking an
 ## The trust boundary is RBAC on CheckSuite/CheckRun create
 
 Whoever can create a CheckSuite can probe arbitrary addresses from
-arbitrarily placed pods — **that is the tool's purpose**. There is no
+arbitrarily placed pods — **that is the tool's purpose**. (The one
+exception: local targets are blocked by default, see below.) There is no
 allowlist of targets inside the suite spec; the control is *who may create
 suites, and where*.
 

@@ -70,8 +70,10 @@ sequenceDiagram
 
 各 runner pod はチェックを実行し、自分の結果セットを server-side apply
 で CheckRun の status に報告します — 各 pod は自分のエントリだけを所有
-するため、報告が衝突することはありません。operator がすべてを集約して
-サマリと最終 phase を決めます。
+するため、正常な runner 同士の報告が衝突することはありません(これは
+仕組み上の保証であって、完全性の保証ではありません — status に書き込み
+得る他の主体については[セキュリティモデル](/verikube/ja/security/)を
+参照)。operator がすべてを集約してサマリと最終 phase を決めます。
 
 ## phase
 

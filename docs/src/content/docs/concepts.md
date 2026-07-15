@@ -70,8 +70,11 @@ sequenceDiagram
 
 Each runner pod executes its checks and reports its own result set into
 the CheckRun's status via server-side apply — each pod owns exactly its
-own entry, so reports never conflict. The operator aggregates everything
-into a summary and a terminal phase.
+own entry, so reports from well-behaved runners never conflict. (This is
+a mechanics guarantee, not an integrity one — see the
+[security model](/verikube/security/) for who else can write into the
+status.) The operator aggregates everything into a summary and a terminal
+phase.
 
 ## Phases
 
