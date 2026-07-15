@@ -59,6 +59,9 @@ spec:
             description: spec defines the desired state of CheckSuite
             properties:
               checks:
+                description: |-
+                  checks define what to probe. Each check runs from every runner
+                  unless it names specific ones in its runners field.
                 items:
                   description: CheckSpec defines a single network check. Exactly one
                     probe type must be set.
@@ -73,10 +76,8 @@ spec:
                       - Failure
                       type: string
                     grpc:
-                      description: |-
-                        GRPCCheck probes a gRPC server using the standard gRPC Health Checking
-                        Protocol (grpc.health.v1.Health/Check). The probe observes success when
-                        the server reports SERVING.
+                      description: grpc probes a server using the gRPC Health Checking
+                        Protocol.
                       properties:
                         address:
                           description: address is the endpoint to dial, in host:port
@@ -112,8 +113,8 @@ spec:
                         rule: '!self.address.startsWith(''http://'') && !self.address.startsWith(''https://'')
                           && !self.address.startsWith(''grpc://'')'
                     http:
-                      description: HTTPCheck probes an HTTP(S) endpoint and verifies
-                        the response status.
+                      description: http probes an HTTP(S) endpoint and verifies the
+                        response status.
                       properties:
                         expectedStatus:
                           description: expectedStatus lists acceptable response status
@@ -135,10 +136,12 @@ spec:
                               check request.
                             properties:
                               name:
+                                description: name of the header.
                                 maxLength: 256
                                 minLength: 1
                                 type: string
                               value:
+                                description: value of the header.
                                 maxLength: 2048
                                 type: string
                             required:
@@ -152,6 +155,7 @@ spec:
                           x-kubernetes-list-type: map
                         method:
                           default: GET
+                          description: method of the request. Defaults to GET.
                           enum:
                           - GET
                           - HEAD
@@ -176,13 +180,15 @@ spec:
                       - url
                       type: object
                     name:
+                      description: name identifies the check within the suite and
+                        in results and metrics.
                       maxLength: 63
                       pattern: ^[a-z0-9]([-a-z0-9]*[a-z0-9])?$
                       type: string
                     retries:
                       description: |-
-                        RetryPolicy retries a check whose observed outcome does not match the
-                        expected one. The result of the last attempt is reported.
+                        retries re-runs the check when its observed outcome does not match
+                        the expected one.
                       properties:
                         attempts:
                           default: 1
@@ -207,8 +213,7 @@ spec:
                       type: array
                       x-kubernetes-list-type: set
                     tcp:
-                      description: TCPCheck probes a TCP endpoint by establishing
-                        a connection.
+                      description: tcp probes an endpoint by establishing a TCP connection.
                       properties:
                         address:
                           description: address is the endpoint to dial, in host:port
@@ -242,25 +247,29 @@ spec:
               concurrencyPolicy:
                 default: Forbid
                 description: |-
-                  ConcurrencyPolicy describes how to treat a scheduled run when a previous
-                  run is still active.
+                  concurrencyPolicy describes how to treat a new run while a previous
+                  one is still active: Allow, Forbid (skip the new run, default) or
+                  Replace (delete the active run first).
                 enum:
                 - Allow
                 - Forbid
                 - Replace
                 type: string
               historyLimit:
-                description: HistoryLimit bounds how many finished CheckRuns are kept
-                  per suite.
+                description: historyLimit bounds how many finished CheckRuns are kept.
                 properties:
                   failed:
                     default: 5
-                    description: failed also covers runs that ended in Error.
+                    description: |-
+                      failed is how many Failed runs to keep; it also covers runs that
+                      ended in Error. Defaults to 5.
                     format: int32
                     minimum: 0
                     type: integer
                   successful:
                     default: 3
+                    description: successful is how many Succeeded runs to keep. Defaults
+                      to 3.
                     format: int32
                     minimum: 0
                     type: integer
@@ -273,12 +282,16 @@ spec:
                     the given scheduling constraints.
                   properties:
                     name:
+                      description: name identifies the runner within the suite and
+                        in checks[].runners.
                       maxLength: 30
                       pattern: ^[a-z0-9]([-a-z0-9]*[a-z0-9])?$
                       type: string
                     nodeSelector:
                       additionalProperties:
                         type: string
+                      description: nodeSelector restricts runner pods to nodes with
+                        these labels.
                       maxProperties: 16
                       type: object
                     replicas:
@@ -291,6 +304,8 @@ spec:
                       minimum: 1
                       type: integer
                     tolerations:
+                      description: tolerations let runner pods schedule onto tainted
+                        nodes.
                       items:
                         description: |-
                           The pod this Toleration is attached to tolerates any taint that matches
@@ -332,16 +347,21 @@ spec:
                       type: array
                       x-kubernetes-list-type: atomic
                     topologySpread:
-                      description: |-
-                        TopologySpread spreads runner pods across a topology domain. It is
-                        rendered as a maxSkew=1 topologySpreadConstraint on the runner Job.
+                      description: topologySpread spreads runner pods across a topology
+                        domain.
                       properties:
                         topologyKey:
                           default: topology.kubernetes.io/zone
+                          description: |-
+                            topologyKey is the node label defining the domains to spread across.
+                            Defaults to topology.kubernetes.io/zone.
                           maxLength: 316
                           type: string
                         whenUnsatisfiable:
                           default: ScheduleAnyway
+                          description: |-
+                            whenUnsatisfiable controls scheduling when the spread cannot be
+                            satisfied. Defaults to ScheduleAnyway.
                           enum:
                           - ScheduleAnyway
                           - DoNotSchedule
@@ -442,6 +462,9 @@ spec:
                 type: array
                 x-kubernetes-list-type: atomic
               conditions:
+                description: |-
+                  conditions describe the suite's current state, e.g.
+                  RunnerServiceAccountMissing.
                 items:
                   description: Condition contains details for one aspect of the current
                     state of this API Resource.
@@ -513,6 +536,8 @@ spec:
                 format: date-time
                 type: string
               observedGeneration:
+                description: observedGeneration is the suite generation most recently
+                  reconciled.
                 format: int64
                 type: integer
             type: object

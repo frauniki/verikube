@@ -1,9 +1,9 @@
-# Observability: check results in Prometheus & Grafana
+---
+title: Observability
+description: Exposing check results as Prometheus metrics and visualizing them in Grafana.
+---
 
-VeriKube's data flow keeps scraping simple: runner pods report results into
-the CheckRun's `.status` (server-side apply), and the operator turns
-completed runs into Prometheus metrics on its own `/metrics` endpoint.
-Runner pods are short-lived Job pods and expose no metrics themselves.
+VeriKube's data flow keeps scraping simple: runner pods report results into the CheckRun's `.status` (server-side apply), and the operator turns completed runs into Prometheus metrics on its own `/metrics` endpoint. Runner pods are short-lived Job pods and expose no metrics themselves.
 
 ```text
 runner pods ──SSA──▶ CheckRun .status ──▶ operator /metrics ──scrape──▶ Prometheus ──▶ Grafana
@@ -22,28 +22,20 @@ runner pods ──SSA──▶ CheckRun .status ──▶ operator /metrics ─�
 
 Semantics worth knowing:
 
-- `namespace`/`suite` identify the CheckSuite; labels deliberately exclude
-  runner and pod names to keep cardinality bounded by what you define.
-- Runs that end in phase `Error` (runner Job failed, deadline exceeded,
-  missing ServiceAccount) produce **no check results**, so the two gauges
-  keep their previous values — pair the staleness gauge with
-  `verikube_checkruns_total{phase="Error"}` to catch this.
+- `namespace`/`suite` identify the CheckSuite; labels deliberately exclude runner and pod names to keep cardinality bounded by what you define.
+- Runs that end in phase `Error` (runner Job failed, deadline exceeded, missing ServiceAccount) produce **no check results**, so the two gauges keep their previous values — pair the staleness gauge with `verikube_checkruns_total{phase="Error"}` to catch this.
 - Deleting a CheckSuite removes its gauge series.
 
 ## Setup with kube-prometheus-stack
 
-1. Install [kube-prometheus-stack](https://github.com/prometheus-community/helm-charts/tree/main/charts/kube-prometheus-stack)
-   (any prometheus-operator deployment works):
+1. Install [kube-prometheus-stack](https://github.com/prometheus-community/helm-charts/tree/main/charts/kube-prometheus-stack) (any prometheus-operator deployment works):
 
    ```bash
    helm install monitoring prometheus-community/kube-prometheus-stack \
      --namespace monitoring --create-namespace
    ```
 
-2. Enable verikube metrics. The metrics endpoint is served over HTTPS with
-   authentication/authorization, so the scraping Prometheus needs `get` on
-   the `/metrics` nonResourceURL — `metrics.reader.*` binds the
-   chart-provided ClusterRole to your Prometheus ServiceAccount:
+2. Enable verikube metrics. The metrics endpoint is served over HTTPS with authentication/authorization, so the scraping Prometheus needs `get` on the `/metrics` nonResourceURL — `metrics.reader.*` binds the chart-provided ClusterRole to your Prometheus ServiceAccount:
 
    ```bash
    helm upgrade verikube oci://ghcr.io/frauniki/charts/verikube --reuse-values \
@@ -53,8 +45,7 @@ Semantics worth knowing:
      --set metrics.reader.namespace=monitoring
    ```
 
-   (Find the ServiceAccount name with
-   `kubectl get prometheus -A -o jsonpath='{.items[*].spec.serviceAccountName}'`.)
+   (Find the ServiceAccount name with `kubectl get prometheus -A -o jsonpath='{.items[*].spec.serviceAccountName}'`.)
 
 3. Trigger a run and check the target:
 
@@ -62,15 +53,9 @@ Semantics worth knowing:
    kubectl annotate checksuite <name> verikube.dev/run-now="$(date +%s)" --overwrite
    ```
 
-   In the Prometheus UI, the verikube target should be **UP** and
-   `verikube_check_last_result` should return series after the run
-   completes.
+   In the Prometheus UI, the verikube target should be **UP** and `verikube_check_last_result` should return series after the run completes.
 
-The chart's ServiceMonitor sets `honorLabels: true` so the metric's own
-`namespace` label (the CheckSuite's namespace) survives scraping. If you
-write your own scrape config instead, do the same — with the default
-`honor_labels: false` the label is renamed to `exported_namespace` and the
-queries below break.
+The chart's ServiceMonitor sets `honorLabels: true` so the metric's own `namespace` label (the CheckSuite's namespace) survives scraping. If you write your own scrape config instead, do the same — with the default `honor_labels: false` the label is renamed to `exported_namespace` and the queries below break.
 
 ## Grafana panels
 
@@ -88,7 +73,7 @@ sum by (namespace, suite, check)
   (rate(verikube_check_result_total{result="fail"}[$__rate_interval]))
 
 # Probe latency p50 / p95 / p99
-histogram_quantile(0.95, sum by (check, le)
+histogram_quantile(0.95, sum by (namespace, suite, check, le)
   (rate(verikube_check_duration_seconds_bucket[$__rate_interval])))
 
 # Runs per hour by phase (stacked)
@@ -98,8 +83,7 @@ sum by (phase) (increase(verikube_checkruns_total[1h]))
 time() - verikube_checkrun_last_completion_timestamp_seconds
 ```
 
-For the status table, map value `1` → PASS (green) and `0` → FAIL (red)
-with a value mapping and color-background cell display.
+For the status table, map value `1` → PASS (green) and `0` → FAIL (red) with a value mapping and color-background cell display.
 
 ## Alert examples
 
@@ -115,6 +99,10 @@ groups:
           summary: "Check {{ $labels.check }} in {{ $labels.namespace }}/{{ $labels.suite }} is failing"
 
       # Set the threshold to ~2x your longest schedule interval.
+      # Note: this only covers suites that have produced results at least
+      # once — the gauge does not exist before the first completed run.
+      # VerikubeRunErrors below catches runs erroring within its window;
+      # a suite that has never run at all is visible to neither.
       - alert: VerikubeSuiteStale
         expr: time() - verikube_checkrun_last_completion_timestamp_seconds > 3600
         labels: { severity: warning }

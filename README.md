@@ -5,9 +5,12 @@
 [![Tests](https://github.com/frauniki/verikube/actions/workflows/test.yml/badge.svg)](https://github.com/frauniki/verikube/actions/workflows/test.yml)
 [![E2E Tests](https://github.com/frauniki/verikube/actions/workflows/test-e2e.yml/badge.svg)](https://github.com/frauniki/verikube/actions/workflows/test-e2e.yml)
 [![Lint](https://github.com/frauniki/verikube/actions/workflows/lint.yml/badge.svg)](https://github.com/frauniki/verikube/actions/workflows/lint.yml)
+[![Docs](https://img.shields.io/badge/docs-frauniki.github.io%2Fverikube-8A2BE2)](https://frauniki.github.io/verikube/)
 ![License](https://img.shields.io/badge/license-Apache--2.0-blue)
 ![Go](https://img.shields.io/badge/go-1.26-00ADD8?logo=go&logoColor=white)
 ![Kubernetes](https://img.shields.io/badge/kubernetes-operator-326CE5?logo=kubernetes&logoColor=white)
+
+**📚 Full documentation: [frauniki.github.io/verikube](https://frauniki.github.io/verikube/)** — quickstart, guides and API reference, in English and 日本語.
 
 VeriKube is an operator that runs network reachability checks (TCP / HTTP /
 gRPC) from pods placed on the nodes you choose, and manages the whole lifecycle —
@@ -166,20 +169,10 @@ uninstalling the chart never deletes your suites and run history.
 
 ### Metrics
 
-The operator exposes check results as Prometheus metrics — runner pods are
-short-lived, so all results are scraped from the operator's single stable
-`/metrics` endpoint:
-
-| Metric | Type | Labels | Meaning |
-|---|---|---|---|
-| `verikube_check_last_result` | gauge | `namespace,suite,check` | Latest verdict: 1 = passed on every pod, 0 = failed somewhere. The "is it green right now" signal for dashboards and alerts |
-| `verikube_check_duration_seconds` | histogram | `namespace,suite,check,result` | Per-probe latency |
-| `verikube_check_result_total` | counter | `namespace,suite,check,result` | Verdicts over time (`pass`/`fail`) |
-| `verikube_checkruns_total` | counter | `namespace,suite,phase` | Terminal runs by phase |
-| `verikube_checkrun_duration_seconds` | histogram | `namespace,suite` | Whole-run wall clock |
-| `verikube_checkrun_last_completion_timestamp_seconds` | gauge | `namespace,suite` | Staleness detection |
-
-Enable with kube-prometheus-stack:
+The operator exposes check results as Prometheus metrics — live pass/fail
+state per check (`verikube_check_last_result`), probe latency histograms
+and run counters. Runner pods are short-lived, so everything is scraped
+from the operator's single stable `/metrics` endpoint:
 
 ```bash
 helm upgrade verikube oci://ghcr.io/frauniki/charts/verikube --reuse-values \
@@ -189,19 +182,8 @@ helm upgrade verikube oci://ghcr.io/frauniki/charts/verikube --reuse-values \
   --set metrics.reader.namespace=monitoring
 ```
 
-The endpoint requires authorization; `metrics.reader.*` binds a
-chart-provided ClusterRole to your Prometheus ServiceAccount so it can
-scrape. Example queries:
-
-```promql
-verikube_check_last_result == 0                                   # checks failing right now
-histogram_quantile(0.95,
-  sum by (check, le) (rate(verikube_check_duration_seconds_bucket[5m])))
-time() - verikube_checkrun_last_completion_timestamp_seconds      # suite staleness
-```
-
-See [docs/observability.md](docs/observability.md) for an end-to-end
-Prometheus + Grafana walkthrough and alert examples.
+See the [observability guide](https://frauniki.github.io/verikube/guides/observability/)
+for the metric reference, Grafana queries and alert examples.
 
 ## Security model
 
@@ -221,15 +203,11 @@ Prometheus + Grafana walkthrough and alert examples.
 
 ## Operational notes
 
-- Schedules are standard 5-field cron, evaluated in **UTC**.
-- `startingDeadline` (default 200s) drops stale missed ticks, so
-  unsuspending a suite or restarting the operator does not fire catch-up
-  runs for windows that already passed.
-- Operator upgrades are safe with runs in flight: all state lives in the
-  API, and runner Jobs are immutable once created.
-- Overriding `runnerImage` in the chart risks version skew: an older runner
-  reports check types it doesn't know as explicit failures
-  (`unknown check type`) rather than silently skipping them.
+Schedules run in **UTC**; missed ticks are dropped rather than replayed;
+operator upgrades are safe with runs in flight. Details — including
+`runnerImage` version-skew behavior and history growth — live in the
+[operational notes](https://frauniki.github.io/verikube/reference/operations/)
+and [troubleshooting guide](https://frauniki.github.io/verikube/guides/troubleshooting/).
 
 ## Development
 
