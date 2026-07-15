@@ -2,6 +2,9 @@
 
 > Declarative network checks for Kubernetes.
 
+[![Tests](https://github.com/frauniki/verikube/actions/workflows/test.yml/badge.svg)](https://github.com/frauniki/verikube/actions/workflows/test.yml)
+[![E2E Tests](https://github.com/frauniki/verikube/actions/workflows/test-e2e.yml/badge.svg)](https://github.com/frauniki/verikube/actions/workflows/test-e2e.yml)
+[![Lint](https://github.com/frauniki/verikube/actions/workflows/lint.yml/badge.svg)](https://github.com/frauniki/verikube/actions/workflows/lint.yml)
 ![License](https://img.shields.io/badge/license-Apache--2.0-blue)
 ![Go](https://img.shields.io/badge/go-1.26-00ADD8?logo=go&logoColor=white)
 ![Kubernetes](https://img.shields.io/badge/kubernetes-operator-326CE5?logo=kubernetes&logoColor=white)
