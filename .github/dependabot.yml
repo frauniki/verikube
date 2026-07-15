@@ -1,0 +1,13 @@
+version: 2
+updates:
+  # Docs site (Astro/Starlight is pre-1.0 and moves fast).
+  - package-ecosystem: npm
+    directory: /docs
+    schedule:
+      interval: weekly
+
+  # Keeps the SHA-pinned actions fresh (updates the pin and its comment).
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
