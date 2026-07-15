@@ -17,6 +17,10 @@ limitations under the License.
 package controller
 
 import (
+	. "github.com/onsi/gomega"
+	ioprometheusclient "github.com/prometheus/client_model/go"
+	ctrlmetrics "sigs.k8s.io/controller-runtime/pkg/metrics"
+
 	verikubev1alpha1 "github.com/frauniki/verikube/api/v1alpha1"
 )
 
@@ -33,4 +37,68 @@ func validTemplate() verikubev1alpha1.CheckSuiteTemplate {
 			},
 		},
 	}
+}
+
+// suiteMetricLabels builds the label matcher shared by all verikube metrics.
+func suiteMetricLabels(namespace, suite string) map[string]string {
+	return map[string]string{"namespace": namespace, "suite": suite}
+}
+
+func checkMetricLabels(namespace, suite, check string) map[string]string {
+	labels := suiteMetricLabels(namespace, suite)
+	labels["check"] = check
+	return labels
+}
+
+func checkResultMetricLabels(namespace, suite, check, result string) map[string]string {
+	labels := checkMetricLabels(namespace, suite, check)
+	labels["result"] = result
+	return labels
+}
+
+// gaugeValue reads a gauge series from the controller-runtime registry
+// without creating it, so absence is observable.
+func gaugeValue(name string, labels map[string]string) (float64, bool) {
+	m, ok := findMetric(name, labels)
+	if !ok {
+		return 0, false
+	}
+	return m.GetGauge().GetValue(), true
+}
+
+// histogramSampleCount reads a histogram series' observation count from the
+// controller-runtime registry; 0 if the series does not exist.
+func histogramSampleCount(name string, labels map[string]string) uint64 {
+	m, ok := findMetric(name, labels)
+	if !ok {
+		return 0
+	}
+	return m.GetHistogram().GetSampleCount()
+}
+
+func findMetric(name string, labels map[string]string) (*ioprometheusclient.Metric, bool) {
+	families, err := ctrlmetrics.Registry.Gather()
+	Expect(err).NotTo(HaveOccurred())
+	for _, mf := range families {
+		if mf.GetName() != name {
+			continue
+		}
+		for _, m := range mf.GetMetric() {
+			have := map[string]string{}
+			for _, lp := range m.GetLabel() {
+				have[lp.GetName()] = lp.GetValue()
+			}
+			match := true
+			for k, v := range labels {
+				if have[k] != v {
+					match = false
+					break
+				}
+			}
+			if match {
+				return m, true
+			}
+		}
+	}
+	return nil, false
 }

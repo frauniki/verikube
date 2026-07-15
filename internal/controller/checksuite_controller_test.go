@@ -35,6 +35,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	verikubedevv1alpha1 "github.com/frauniki/verikube/api/v1alpha1"
+	"github.com/frauniki/verikube/internal/metrics"
 )
 
 func newCheckSuiteReconciler(clk *testclock.FakePassiveClock) (*CheckSuiteReconciler, *events.FakeRecorder) {
@@ -297,6 +298,25 @@ var _ = Describe("CheckSuite Controller", func() {
 		res := reconcileSuite(r, suite)
 		Expect(res.RequeueAfter).To(BeZero())
 		Expect(listSuiteRuns(suite)).To(BeEmpty())
+	})
+
+	It("drops state gauges when the suite is deleted", func() {
+		ns := createNamespace()
+		r, _ := newCheckSuiteReconciler(nil)
+		suite := newSuite(ns, nil)
+		reconcileSuite(r, suite)
+
+		metrics.SetLastResults(ns, suite.Name, map[string]bool{"example-tcp": true})
+		metrics.CheckRunLastCompletion.WithLabelValues(ns, suite.Name).Set(123)
+
+		Expect(k8sClient.Delete(ctx, suite)).To(Succeed())
+		reconcileSuite(r, suite) // NotFound path
+
+		_, ok := gaugeValue("verikube_check_last_result", suiteMetricLabels(ns, suite.Name))
+		Expect(ok).To(BeFalse())
+		_, ok = gaugeValue("verikube_checkrun_last_completion_timestamp_seconds",
+			suiteMetricLabels(ns, suite.Name))
+		Expect(ok).To(BeFalse())
 	})
 })
 

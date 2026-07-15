@@ -48,6 +48,13 @@ metrics:
   bindAddress: ":8443"
   serviceMonitor:
     enabled: false
+  # The metrics endpoint requires authorization. The chart always creates a
+  # ClusterRole granting GET /metrics; name a ServiceAccount here to also
+  # bind it (e.g. kube-prometheus-stack's prometheus SA), or leave empty and
+  # bind the ClusterRole yourself.
+  reader:
+    serviceAccountName: ""  # e.g. prometheus-kube-prometheus-prometheus
+    namespace: ""           # e.g. monitoring
 
 resources:
   requests:

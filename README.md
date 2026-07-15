@@ -39,7 +39,7 @@ flowchart LR
 - **Three probe types** — TCP connect, HTTP (status / headers), gRPC Health Checking Protocol
 - **Negative tests** — assert that a connection **fails** (`expect: Failure`), e.g. to verify security groups
 - **Cron scheduling + run-now** — standard 5-field cron, or trigger ad hoc with one annotation
-- **Prometheus metrics** — per-suite and per-check result counters, run durations
+- **Prometheus metrics** — live pass/fail state per check, probe latency histograms, run counters; Grafana-ready
 
 ## Why
 
@@ -166,11 +166,42 @@ uninstalling the chart never deletes your suites and run history.
 
 ### Metrics
 
-Set `metrics.enabled=true` to expose Prometheus metrics
-(`verikube_checkruns_total{suite,phase}`,
-`verikube_checkrun_duration_seconds{suite}`,
-`verikube_check_result_total{suite,check,result}`), and
-`metrics.serviceMonitor.enabled=true` if you use prometheus-operator.
+The operator exposes check results as Prometheus metrics — runner pods are
+short-lived, so all results are scraped from the operator's single stable
+`/metrics` endpoint:
+
+| Metric | Type | Labels | Meaning |
+|---|---|---|---|
+| `verikube_check_last_result` | gauge | `namespace,suite,check` | Latest verdict: 1 = passed on every pod, 0 = failed somewhere. The "is it green right now" signal for dashboards and alerts |
+| `verikube_check_duration_seconds` | histogram | `namespace,suite,check,result` | Per-probe latency |
+| `verikube_check_result_total` | counter | `namespace,suite,check,result` | Verdicts over time (`pass`/`fail`) |
+| `verikube_checkruns_total` | counter | `namespace,suite,phase` | Terminal runs by phase |
+| `verikube_checkrun_duration_seconds` | histogram | `namespace,suite` | Whole-run wall clock |
+| `verikube_checkrun_last_completion_timestamp_seconds` | gauge | `namespace,suite` | Staleness detection |
+
+Enable with kube-prometheus-stack:
+
+```bash
+helm upgrade verikube oci://ghcr.io/frauniki/charts/verikube --reuse-values \
+  --set metrics.enabled=true \
+  --set metrics.serviceMonitor.enabled=true \
+  --set metrics.reader.serviceAccountName=prometheus-kube-prometheus-prometheus \
+  --set metrics.reader.namespace=monitoring
+```
+
+The endpoint requires authorization; `metrics.reader.*` binds a
+chart-provided ClusterRole to your Prometheus ServiceAccount so it can
+scrape. Example queries:
+
+```promql
+verikube_check_last_result == 0                                   # checks failing right now
+histogram_quantile(0.95,
+  sum by (check, le) (rate(verikube_check_duration_seconds_bucket[5m])))
+time() - verikube_checkrun_last_completion_timestamp_seconds      # suite staleness
+```
+
+See [docs/observability.md](docs/observability.md) for an end-to-end
+Prometheus + Grafana walkthrough and alert examples.
 
 ## Security model
 
