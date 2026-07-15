@@ -1,0 +1,61 @@
+image:
+  repository: ghcr.io/frauniki/verikube
+  # Defaults to the chart appVersion.
+  tag: ""
+  pullPolicy: IfNotPresent
+
+imagePullSecrets: []
+
+replicas: 1
+
+# Image for runner Job pods. Leave empty to use the operator image (strongly
+# recommended: a runner image older than the installed CRDs reports newer
+# check types as failures instead of executing them).
+runnerImage: ""
+
+# ServiceAccount name for runner pods. Created in the release namespace and
+# in every entry of checkNamespaces.
+runnerServiceAccount: verikube-runner
+
+# Namespaces (in addition to the release namespace) where CheckSuites will
+# live. The chart provisions the runner ServiceAccount and RoleBinding in
+# each. A CheckSuite in a namespace missing them fails fast with a
+# RunnerServiceAccountMissing condition.
+checkNamespaces: []
+
+# Allow checks to probe loopback and link-local targets (e.g. cloud metadata
+# endpoints). Blocked by default.
+allowLocalTargets: false
+
+crds:
+  # Install/upgrade the CRDs with the chart. CRDs are templated (not in the
+  # special crds/ directory) so `helm upgrade` rolls schema changes.
+  enabled: true
+  # Annotate CRDs with helm.sh/resource-policy: keep so `helm uninstall`
+  # leaves them (and all CheckSuites/CheckRuns) in place.
+  keep: true
+
+serviceAccount:
+  create: true
+  # Defaults to the fullname.
+  name: ""
+
+leaderElection: true
+
+metrics:
+  enabled: false
+  # Secure serving via controller-runtime with authn/authz.
+  bindAddress: ":8443"
+  serviceMonitor:
+    enabled: false
+
+resources:
+  requests:
+    cpu: 50m
+    memory: 64Mi
+  limits:
+    memory: 256Mi
+
+nodeSelector: {}
+tolerations: []
+affinity: {}

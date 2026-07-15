@@ -1,0 +1,6 @@
+## Append samples of your project ##
+resources:
+- v1alpha1_checksuite.yaml
+- v1alpha1_checksuite_scheduled.yaml
+- v1alpha1_checkrun.yaml
+# +kubebuilder:scaffold:manifestskustomizesamples

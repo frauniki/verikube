@@ -1,0 +1,28 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: nginx
+  namespace: verikube-e2e
+  labels:
+    app: nginx
+spec:
+  containers:
+    - name: nginx
+      # Built and preloaded into kind by the e2e suite (see e2e_suite_test.go).
+      image: verikube-e2e/nginx:local
+      imagePullPolicy: Never
+      ports:
+        - containerPort: 80
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: nginx
+  namespace: verikube-e2e
+spec:
+  selector:
+    app: nginx
+  ports:
+    - name: http
+      port: 80
+      targetPort: 80

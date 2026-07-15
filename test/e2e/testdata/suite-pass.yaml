@@ -1,0 +1,41 @@
+# A suite expected to reach phase Succeeded: reachable TCP/HTTP/gRPC
+# endpoints plus a negative test against a port the nginx Service does not
+# expose.
+apiVersion: verikube.dev/v1alpha1
+kind: CheckSuite
+metadata:
+  name: e2e-pass
+  namespace: verikube-e2e
+spec:
+  timeout: 3m
+  runners:
+    - name: default
+  checks:
+    - name: nginx-tcp
+      tcp:
+        address: "nginx.verikube-e2e.svc.cluster.local:80"
+        timeout: 5s
+      # A freshly created kind cluster can need a few seconds before service
+      # traffic flows; retries absorb that warm-up (observed as CI flakes).
+      retries:
+        attempts: 4
+        delay: 3s
+    - name: nginx-http
+      http:
+        url: "http://nginx.verikube-e2e.svc.cluster.local/"
+        expectedStatus: [200]
+      retries:
+        attempts: 3
+        delay: 2s
+    - name: grpc-health
+      grpc:
+        address: "grpc-server.verikube-e2e.svc.cluster.local:5000"
+        timeout: 10s
+      retries:
+        attempts: 3
+        delay: 2s
+    - name: closed-port-blocked
+      tcp:
+        address: "nginx.verikube-e2e.svc.cluster.local:81"
+        timeout: 3s
+      expect: Failure

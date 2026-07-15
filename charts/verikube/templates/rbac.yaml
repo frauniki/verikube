@@ -1,0 +1,81 @@
+# Manager RBAC. Rules mirror the kubebuilder markers in
+# internal/controller/*_controller.go (source of truth: config/rbac/role.yaml).
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ include "verikube.fullname" . }}-manager
+  labels:
+    {{- include "verikube.labels" . | nindent 4 }}
+rules:
+  - apiGroups: [""]
+    resources: [serviceaccounts]
+    verbs: [get]
+  - apiGroups: [""]
+    resources: [events]
+    verbs: [create, patch]
+  - apiGroups: [events.k8s.io]
+    resources: [events]
+    verbs: [create, patch]
+  - apiGroups: [batch]
+    resources: [jobs]
+    verbs: [create, delete, get, list, watch]
+  - apiGroups: [verikube.dev]
+    resources: [checkruns]
+    verbs: [create, delete, get, list, patch, update, watch]
+  - apiGroups: [verikube.dev]
+    resources: [checksuites]
+    verbs: [get, list, patch, update, watch]
+  - apiGroups: [verikube.dev]
+    resources: [checkruns/finalizers, checksuites/finalizers]
+    verbs: [update]
+  - apiGroups: [verikube.dev]
+    resources: [checkruns/status, checksuites/status]
+    verbs: [get, patch, update]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ include "verikube.fullname" . }}-manager
+  labels:
+    {{- include "verikube.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ include "verikube.fullname" . }}-manager
+subjects:
+  - kind: ServiceAccount
+    name: {{ include "verikube.serviceAccountName" . }}
+    namespace: {{ .Release.Namespace }}
+{{- if .Values.leaderElection }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ include "verikube.fullname" . }}-leader-election
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "verikube.labels" . | nindent 4 }}
+rules:
+  - apiGroups: [coordination.k8s.io]
+    resources: [leases]
+    verbs: [get, list, watch, create, update, patch, delete]
+  - apiGroups: [""]
+    resources: [events]
+    verbs: [create, patch]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ include "verikube.fullname" . }}-leader-election
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "verikube.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: {{ include "verikube.fullname" . }}-leader-election
+subjects:
+  - kind: ServiceAccount
+    name: {{ include "verikube.serviceAccountName" . }}
+    namespace: {{ .Release.Namespace }}
+{{- end }}

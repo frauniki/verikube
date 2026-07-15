@@ -1,0 +1,68 @@
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: manager-role
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - serviceaccounts
+  verbs:
+  - get
+- apiGroups:
+  - ""
+  - events.k8s.io
+  resources:
+  - events
+  verbs:
+  - create
+  - patch
+- apiGroups:
+  - batch
+  resources:
+  - jobs
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - watch
+- apiGroups:
+  - verikube.dev
+  resources:
+  - checkruns
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - verikube.dev
+  resources:
+  - checkruns/finalizers
+  - checksuites/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - verikube.dev
+  resources:
+  - checkruns/status
+  - checksuites/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - verikube.dev
+  resources:
+  - checksuites
+  verbs:
+  - get
+  - list
+  - patch
+  - update
+  - watch

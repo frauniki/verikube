@@ -1,0 +1,560 @@
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.21.0
+  name: checkruns.verikube.dev
+spec:
+  group: verikube.dev
+  names:
+    kind: CheckRun
+    listKind: CheckRunList
+    plural: checkruns
+    shortNames:
+    - ckr
+    singular: checkrun
+  scope: Namespaced
+  versions:
+  - additionalPrinterColumns:
+    - jsonPath: .spec.suiteRef.name
+      name: Suite
+      type: string
+    - jsonPath: .status.phase
+      name: Phase
+      type: string
+    - jsonPath: .status.summary.passed
+      name: Passed
+      type: integer
+    - jsonPath: .status.summary.failed
+      name: Failed
+      type: integer
+    - jsonPath: .status.startTime
+      name: Started
+      type: date
+    - jsonPath: .metadata.creationTimestamp
+      name: Age
+      type: date
+    name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: CheckRun is the Schema for the checkruns API
+        properties:
+          apiVersion:
+            description: |-
+              APIVersion defines the versioned schema of this representation of an object.
+              Servers should convert recognized schemas to the latest internal value, and
+              may reject unrecognized values.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+            type: string
+          kind:
+            description: |-
+              Kind is a string value representing the REST resource this object represents.
+              Servers may infer this from the endpoint the client submits requests to.
+              Cannot be updated.
+              In CamelCase.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: spec defines the desired state of CheckRun
+            properties:
+              suite:
+                description: |-
+                  suite is a full snapshot of the suite template taken when the run
+                  was created, so later suite edits do not affect an in-flight run.
+                properties:
+                  checks:
+                    items:
+                      description: CheckSpec defines a single network check. Exactly
+                        one probe type must be set.
+                      properties:
+                        expect:
+                          default: Success
+                          description: |-
+                            expect declares which raw observation makes the check pass.
+                            Failure turns the check into a negative test.
+                          enum:
+                          - Success
+                          - Failure
+                          type: string
+                        grpc:
+                          description: |-
+                            GRPCCheck probes a gRPC server using the standard gRPC Health Checking
+                            Protocol (grpc.health.v1.Health/Check). The probe observes success when
+                            the server reports SERVING.
+                          properties:
+                            address:
+                              description: address is the endpoint to dial, in host:port
+                                form.
+                              maxLength: 253
+                              minLength: 1
+                              type: string
+                            service:
+                              description: |-
+                                service is the health-check service name to query. Empty queries the
+                                server's overall health.
+                              maxLength: 253
+                              type: string
+                            timeout:
+                              description: |-
+                                timeout for the whole check, connection establishment included.
+                                Defaults to 5s.
+                              type: string
+                            tls:
+                              description: tls enables TLS for the connection. Omitted
+                                means plaintext.
+                              properties:
+                                insecureSkipVerify:
+                                  description: insecureSkipVerify skips verification
+                                    of the server certificate.
+                                  type: boolean
+                              type: object
+                          required:
+                          - address
+                          type: object
+                          x-kubernetes-validations:
+                          - message: address must be host:port without a scheme
+                            rule: '!self.address.startsWith(''http://'') && !self.address.startsWith(''https://'')
+                              && !self.address.startsWith(''grpc://'')'
+                        http:
+                          description: HTTPCheck probes an HTTP(S) endpoint and verifies
+                            the response status.
+                          properties:
+                            expectedStatus:
+                              description: expectedStatus lists acceptable response
+                                status codes. Defaults to [200].
+                              items:
+                                format: int32
+                                maximum: 599
+                                minimum: 100
+                                type: integer
+                              maxItems: 20
+                              type: array
+                              x-kubernetes-list-type: set
+                            headers:
+                              description: |-
+                                headers to send with the request. A "Host" header overrides the
+                                request host (useful when probing through a load balancer).
+                              items:
+                                description: HTTPHeader is a header to send with an
+                                  HTTP check request.
+                                properties:
+                                  name:
+                                    maxLength: 256
+                                    minLength: 1
+                                    type: string
+                                  value:
+                                    maxLength: 2048
+                                    type: string
+                                required:
+                                - name
+                                - value
+                                type: object
+                              maxItems: 32
+                              type: array
+                              x-kubernetes-list-map-keys:
+                              - name
+                              x-kubernetes-list-type: map
+                            method:
+                              default: GET
+                              enum:
+                              - GET
+                              - HEAD
+                              - POST
+                              - PUT
+                              - PATCH
+                              - DELETE
+                              - OPTIONS
+                              type: string
+                            timeout:
+                              description: timeout for the whole request. Defaults
+                                to 30s.
+                              type: string
+                            url:
+                              description: url of the request. Must start with http://
+                                or https://.
+                              maxLength: 2048
+                              minLength: 1
+                              pattern: ^https?://
+                              type: string
+                          required:
+                          - url
+                          type: object
+                        name:
+                          maxLength: 63
+                          pattern: ^[a-z0-9]([-a-z0-9]*[a-z0-9])?$
+                          type: string
+                        retries:
+                          description: |-
+                            RetryPolicy retries a check whose observed outcome does not match the
+                            expected one. The result of the last attempt is reported.
+                          properties:
+                            attempts:
+                              default: 1
+                              description: attempts is the total number of attempts,
+                                including the first one.
+                              format: int32
+                              maximum: 10
+                              minimum: 1
+                              type: integer
+                            delay:
+                              description: delay between attempts. Defaults to 1s.
+                              type: string
+                          type: object
+                        runners:
+                          description: |-
+                            runners restricts this check to the named runners.
+                            Empty means the check runs from every runner in the suite.
+                          items:
+                            maxLength: 30
+                            type: string
+                          maxItems: 16
+                          type: array
+                          x-kubernetes-list-type: set
+                        tcp:
+                          description: TCPCheck probes a TCP endpoint by establishing
+                            a connection.
+                          properties:
+                            address:
+                              description: address is the endpoint to dial, in host:port
+                                form.
+                              maxLength: 253
+                              minLength: 1
+                              type: string
+                            timeout:
+                              description: timeout for the dial attempt. Defaults
+                                to 1s.
+                              type: string
+                          required:
+                          - address
+                          type: object
+                          x-kubernetes-validations:
+                          - message: address must be host:port without a scheme
+                            rule: '!self.address.startsWith(''http://'') && !self.address.startsWith(''https://'')
+                              && !self.address.startsWith(''tcp://'')'
+                      required:
+                      - name
+                      type: object
+                      x-kubernetes-validations:
+                      - message: exactly one of tcp, http or grpc must be set
+                        rule: '[has(self.tcp), has(self.http), has(self.grpc)].filter(x,
+                          x).size() == 1'
+                    maxItems: 128
+                    minItems: 1
+                    type: array
+                    x-kubernetes-list-map-keys:
+                    - name
+                    x-kubernetes-list-type: map
+                  runners:
+                    description: runners define where the checks execute from.
+                    items:
+                      description: |-
+                        RunnerSpec defines where checks execute from: a set of pods created with
+                        the given scheduling constraints.
+                      properties:
+                        name:
+                          maxLength: 30
+                          pattern: ^[a-z0-9]([-a-z0-9]*[a-z0-9])?$
+                          type: string
+                        nodeSelector:
+                          additionalProperties:
+                            type: string
+                          maxProperties: 16
+                          type: object
+                        replicas:
+                          default: 1
+                          description: |-
+                            replicas is the number of runner pods. Each pod executes the full
+                            set of checks assigned to this runner.
+                          format: int32
+                          maximum: 16
+                          minimum: 1
+                          type: integer
+                        tolerations:
+                          items:
+                            description: |-
+                              The pod this Toleration is attached to tolerates any taint that matches
+                              the triple <key,value,effect> using the matching operator <operator>.
+                            properties:
+                              effect:
+                                description: |-
+                                  Effect indicates the taint effect to match. Empty means match all taint effects.
+                                  When specified, allowed values are NoSchedule, PreferNoSchedule and NoExecute.
+                                type: string
+                              key:
+                                description: |-
+                                  Key is the taint key that the toleration applies to. Empty means match all taint keys.
+                                  If the key is empty, operator must be Exists; this combination means to match all values and all keys.
+                                type: string
+                              operator:
+                                description: |-
+                                  Operator represents a key's relationship to the value.
+                                  Valid operators are Exists, Equal, Lt, and Gt. Defaults to Equal.
+                                  Exists is equivalent to wildcard for value, so that a pod can
+                                  tolerate all taints of a particular category.
+                                  Lt and Gt perform numeric comparisons (requires feature gate TaintTolerationComparisonOperators).
+                                type: string
+                              tolerationSeconds:
+                                description: |-
+                                  TolerationSeconds represents the period of time the toleration (which must be
+                                  of effect NoExecute, otherwise this field is ignored) tolerates the taint. By default,
+                                  it is not set, which means tolerate the taint forever (do not evict). Zero and
+                                  negative values will be treated as 0 (evict immediately) by the system.
+                                format: int64
+                                type: integer
+                              value:
+                                description: |-
+                                  Value is the taint value the toleration matches to.
+                                  If the operator is Exists, the value should be empty, otherwise just a regular string.
+                                type: string
+                            type: object
+                          maxItems: 16
+                          type: array
+                          x-kubernetes-list-type: atomic
+                        topologySpread:
+                          description: |-
+                            TopologySpread spreads runner pods across a topology domain. It is
+                            rendered as a maxSkew=1 topologySpreadConstraint on the runner Job.
+                          properties:
+                            topologyKey:
+                              default: topology.kubernetes.io/zone
+                              maxLength: 316
+                              type: string
+                            whenUnsatisfiable:
+                              default: ScheduleAnyway
+                              enum:
+                              - ScheduleAnyway
+                              - DoNotSchedule
+                              type: string
+                          type: object
+                      required:
+                      - name
+                      type: object
+                    maxItems: 16
+                    minItems: 1
+                    type: array
+                    x-kubernetes-list-map-keys:
+                    - name
+                    x-kubernetes-list-type: map
+                  timeout:
+                    description: |-
+                      timeout is the deadline for the whole run. A run exceeding it is
+                      marked Error with a DeadlineExceeded condition. Defaults to 10m.
+                    type: string
+                required:
+                - checks
+                - runners
+                type: object
+                x-kubernetes-validations:
+                - message: checks[].runners must reference names defined in runners[]
+                  rule: self.checks.all(c, !has(c.runners) || c.runners.all(r, self.runners.exists(x,
+                    x.name == r)))
+              suiteRef:
+                description: |-
+                  suiteRef names the CheckSuite this run was created from.
+                  Ad-hoc runs may omit it.
+                properties:
+                  name:
+                    default: ""
+                    description: |-
+                      Name of the referent.
+                      This field is effectively required, but due to backwards compatibility is
+                      allowed to be empty. Instances of this type with an empty value here are
+                      almost certainly wrong.
+                      More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                    type: string
+                type: object
+                x-kubernetes-map-type: atomic
+            required:
+            - suite
+            type: object
+            x-kubernetes-validations:
+            - message: CheckRun spec is immutable
+              rule: self == oldSelf
+          status:
+            description: status defines the observed state of CheckRun
+            properties:
+              completionTime:
+                format: date-time
+                type: string
+              conditions:
+                items:
+                  description: Condition contains details for one aspect of the current
+                    state of this API Resource.
+                  properties:
+                    lastTransitionTime:
+                      description: |-
+                        lastTransitionTime is the last time the condition transitioned from one status to another.
+                        This should be when the underlying condition changed.  If that is not known, then using the time when the API field changed is acceptable.
+                      format: date-time
+                      type: string
+                    message:
+                      description: |-
+                        message is a human readable message indicating details about the transition.
+                        This may be an empty string.
+                      maxLength: 32768
+                      type: string
+                    observedGeneration:
+                      description: |-
+                        observedGeneration represents the .metadata.generation that the condition was set based upon.
+                        For instance, if .metadata.generation is currently 12, but the .status.conditions[x].observedGeneration is 9, the condition is out of date
+                        with respect to the current state of the instance.
+                      format: int64
+                      minimum: 0
+                      type: integer
+                    reason:
+                      description: |-
+                        reason contains a programmatic identifier indicating the reason for the condition's last transition.
+                        Producers of specific condition types may define expected values and meanings for this field,
+                        and whether the values are considered a guaranteed API.
+                        The value should be a CamelCase string.
+                        This field may not be empty.
+                      maxLength: 1024
+                      minLength: 1
+                      pattern: ^[A-Za-z]([A-Za-z0-9_,:]*[A-Za-z0-9_])?$
+                      type: string
+                    status:
+                      description: status of the condition, one of True, False, Unknown.
+                      enum:
+                      - "True"
+                      - "False"
+                      - Unknown
+                      type: string
+                    type:
+                      description: type of condition in CamelCase or in foo.example.com/CamelCase.
+                      maxLength: 316
+                      pattern: ^([a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*/)?(([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9])$
+                      type: string
+                  required:
+                  - lastTransitionTime
+                  - message
+                  - reason
+                  - status
+                  - type
+                  type: object
+                type: array
+                x-kubernetes-list-map-keys:
+                - type
+                x-kubernetes-list-type: map
+              observedGeneration:
+                format: int64
+                type: integer
+              phase:
+                description: CheckRunPhase summarizes the lifecycle of a run.
+                enum:
+                - Pending
+                - Running
+                - Succeeded
+                - Failed
+                - Error
+                type: string
+              runners:
+                description: runners holds results reported by runner pods via server-side
+                  apply.
+                items:
+                  description: RunnerStatus groups pod results per runner.
+                  properties:
+                    name:
+                      maxLength: 30
+                      type: string
+                    pods:
+                      items:
+                        description: |-
+                          PodResult is the complete result set reported by a single runner pod.
+                          Each pod applies exactly its own entry via server-side apply, so entries
+                          never conflict between pods.
+                        properties:
+                          checks:
+                            items:
+                              description: CheckResult is the outcome of one check
+                                from one runner pod.
+                              properties:
+                                attempts:
+                                  description: attempts actually used (>1 only when
+                                    retries are configured).
+                                  format: int32
+                                  type: integer
+                                duration:
+                                  type: string
+                                message:
+                                  maxLength: 1024
+                                  type: string
+                                name:
+                                  maxLength: 63
+                                  type: string
+                                observed:
+                                  description: observed is the raw probe outcome,
+                                    kept for debugging negative tests.
+                                  enum:
+                                  - Success
+                                  - Failure
+                                  type: string
+                                passed:
+                                  description: passed is the verdict after expect
+                                    is applied.
+                                  type: boolean
+                              required:
+                              - name
+                              - observed
+                              - passed
+                              type: object
+                            maxItems: 128
+                            type: array
+                            x-kubernetes-list-map-keys:
+                            - name
+                            x-kubernetes-list-type: map
+                          completionTime:
+                            format: date-time
+                            type: string
+                          nodeName:
+                            maxLength: 253
+                            type: string
+                          podName:
+                            maxLength: 253
+                            type: string
+                          startTime:
+                            format: date-time
+                            type: string
+                        required:
+                        - podName
+                        type: object
+                      maxItems: 64
+                      type: array
+                      x-kubernetes-list-map-keys:
+                      - podName
+                      x-kubernetes-list-type: map
+                  required:
+                  - name
+                  type: object
+                maxItems: 16
+                type: array
+                x-kubernetes-list-map-keys:
+                - name
+                x-kubernetes-list-type: map
+              startTime:
+                format: date-time
+                type: string
+              summary:
+                description: RunSummary is a controller-owned aggregate over all reported
+                  results.
+                properties:
+                  failed:
+                    format: int32
+                    type: integer
+                  passed:
+                    format: int32
+                    type: integer
+                  total:
+                    format: int32
+                    type: integer
+                type: object
+            type: object
+        required:
+        - spec
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}

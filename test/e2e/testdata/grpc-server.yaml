@@ -1,0 +1,31 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: grpc-server
+  namespace: verikube-e2e
+  labels:
+    app: grpc-server
+spec:
+  containers:
+    - name: grpc-server
+      # Built and preloaded into kind by the e2e suite (see e2e_suite_test.go).
+      # agnhost grpc-health-checking serves grpc.health.v1.Health on :5000,
+      # reporting SERVING by default.
+      image: verikube-e2e/agnhost:local
+      imagePullPolicy: Never
+      args: ["grpc-health-checking"]
+      ports:
+        - containerPort: 5000
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: grpc-server
+  namespace: verikube-e2e
+spec:
+  selector:
+    app: grpc-server
+  ports:
+    - name: grpc
+      port: 5000
+      targetPort: 5000

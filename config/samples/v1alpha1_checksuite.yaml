@@ -1,0 +1,39 @@
+# Basic CheckSuite: TCP/HTTP reachability plus a negative test, run manually
+# with:
+#   kubectl annotate checksuite checksuite-sample verikube.dev/run-now="$(date +%s)" --overwrite
+apiVersion: verikube.dev/v1alpha1
+kind: CheckSuite
+metadata:
+  labels:
+    app.kubernetes.io/name: verikube
+    app.kubernetes.io/managed-by: kustomize
+  name: checksuite-sample
+spec:
+  runners:
+    - name: default
+  checks:
+    - name: db-reachable
+      tcp:
+        address: "db.internal:3306"
+        timeout: 5s
+    - name: api-health
+      http:
+        url: "https://api.internal/health"
+        headers:
+          - name: Host
+            value: api.example.com
+          - name: Accept
+            value: application/json
+        expectedStatus: [200, 204]
+      retries:
+        attempts: 3
+        delay: 5s
+    - name: payments-grpc # gRPC Health Checking Protocol (grpc.health.v1)
+      grpc:
+        address: "payments.internal:50051"
+        service: payments.v1.Payments # omit to query overall server health
+        timeout: 5s
+    - name: external-blocked # negative test: the security group must block this
+      tcp:
+        address: "blocked.example.com:443"
+      expect: Failure

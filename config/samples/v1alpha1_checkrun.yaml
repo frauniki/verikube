@@ -1,0 +1,18 @@
+# Ad-hoc CheckRun without a CheckSuite. Prefer triggering an existing suite
+# with the verikube.dev/run-now annotation; use this form for one-off checks.
+apiVersion: verikube.dev/v1alpha1
+kind: CheckRun
+metadata:
+  labels:
+    app.kubernetes.io/name: verikube
+    app.kubernetes.io/managed-by: kustomize
+  name: checkrun-sample
+spec:
+  suite:
+    runners:
+      - name: default
+    checks:
+      - name: dns-endpoint-reachable
+        tcp:
+          address: "kube-dns.kube-system.svc.cluster.local:53"
+          timeout: 2s

@@ -1,0 +1,48 @@
+# Runner RBAC: the minimum runner pods need — read their CheckRun, patch its
+# status. The ServiceAccount and RoleBinding are provisioned in the release
+# namespace and every checkNamespaces entry; CheckSuites elsewhere fail fast
+# with a RunnerServiceAccountMissing condition.
+#
+# Residual risk (documented in the README): within a bound namespace, anyone
+# who can create pods can mount this ServiceAccount and patch any CheckRun's
+# status. The controller flags entries whose pod names don't match its Jobs
+# with ForeignResultEntry warning events.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ include "verikube.fullname" . }}-runner
+  labels:
+    {{- include "verikube.labels" . | nindent 4 }}
+rules:
+  - apiGroups: [verikube.dev]
+    resources: [checkruns]
+    verbs: [get]
+  - apiGroups: [verikube.dev]
+    resources: [checkruns/status]
+    verbs: [patch]
+{{- range $ns := (append .Values.checkNamespaces .Release.Namespace | uniq) }}
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ $.Values.runnerServiceAccount }}
+  namespace: {{ $ns }}
+  labels:
+    {{- include "verikube.labels" $ | nindent 4 }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ include "verikube.fullname" $ }}-runner
+  namespace: {{ $ns }}
+  labels:
+    {{- include "verikube.labels" $ | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ include "verikube.fullname" $ }}-runner
+subjects:
+  - kind: ServiceAccount
+    name: {{ $.Values.runnerServiceAccount }}
+    namespace: {{ $ns }}
+{{- end }}

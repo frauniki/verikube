@@ -1,0 +1,15 @@
+# A suite expected to reach phase Failed: nginx answers 200, not 418.
+apiVersion: verikube.dev/v1alpha1
+kind: CheckSuite
+metadata:
+  name: e2e-fail
+  namespace: verikube-e2e
+spec:
+  timeout: 3m
+  runners:
+    - name: default
+  checks:
+    - name: wrong-status
+      http:
+        url: "http://nginx.verikube-e2e.svc.cluster.local/"
+        expectedStatus: [418]
