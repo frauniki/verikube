@@ -261,7 +261,7 @@ func (r *CheckRunReconciler) finish(ctx context.Context, run *verikubev1alpha1.C
 	if err := r.applyStatus(ctx, run, st); err != nil {
 		return ctrl.Result{}, err
 	}
-	r.recordMetrics(run, phase, completionTime.Sub(startTime.Time), completionTime.Time)
+	r.recordMetrics(ctx, run, phase, completionTime.Sub(startTime.Time), completionTime.Time)
 	if phase == verikubev1alpha1.CheckRunSucceeded {
 		r.Recorder.Eventf(run, nil, corev1.EventTypeNormal, "Succeeded", "Reconcile", "all checks passed")
 	}
@@ -484,7 +484,7 @@ func (r *CheckRunReconciler) buildJob(run *verikubev1alpha1.CheckRun, rn verikub
 	return job, nil
 }
 
-func (r *CheckRunReconciler) recordMetrics(run *verikubev1alpha1.CheckRun, phase verikubev1alpha1.CheckRunPhase, duration time.Duration, completedAt time.Time) {
+func (r *CheckRunReconciler) recordMetrics(ctx context.Context, run *verikubev1alpha1.CheckRun, phase verikubev1alpha1.CheckRunPhase, duration time.Duration, completedAt time.Time) {
 	suite := ""
 	if run.Spec.SuiteRef != nil {
 		suite = run.Spec.SuiteRef.Name
@@ -497,6 +497,15 @@ func (r *CheckRunReconciler) recordMetrics(run *verikubev1alpha1.CheckRun, phase
 	// run's values so staleness alerting can notice the gap.
 	if phase != verikubev1alpha1.CheckRunSucceeded && phase != verikubev1alpha1.CheckRunFailed {
 		return
+	}
+	// A run can outlive its suite. The suite controller drops the gauges
+	// exactly once, on the deletion event; writing results for a deleted
+	// suite here would resurrect them with nothing left to clean them up.
+	if run.Spec.SuiteRef != nil {
+		if err := r.Get(ctx, client.ObjectKey{Namespace: ns, Name: suite},
+			&verikubev1alpha1.CheckSuite{}); apierrors.IsNotFound(err) {
+			return
+		}
 	}
 	// A check passes only if it passed on every pod that ran it. With
 	// concurrencyPolicy Allow, runs can complete out of order and the last

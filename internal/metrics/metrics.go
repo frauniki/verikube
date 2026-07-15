@@ -48,7 +48,7 @@ var (
 	CheckRunDuration = prometheus.NewHistogramVec(prometheus.HistogramOpts{
 		Name:    "verikube_checkrun_duration_seconds",
 		Help:    "Duration of completed CheckRuns in seconds.",
-		Buckets: prometheus.ExponentialBuckets(1, 2, 12), // 1s .. ~68m
+		Buckets: prometheus.ExponentialBuckets(1, 2, 12), // 1s .. ~34m
 	}, []string{namespaceLabel, suiteLabel})
 
 	// CheckResultTotal counts per-check verdicts for completed runs.

@@ -555,9 +555,15 @@ var _ = Describe("aggregate", func() {
 })
 
 var _ = Describe("recordMetrics", func() {
-	const ns = "metrics-ns"
+	newMetricsSuite := func(ns, name string) {
+		suite := &verikubedevv1alpha1.CheckSuite{
+			ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: ns},
+			Spec:       verikubedevv1alpha1.CheckSuiteSpec{CheckSuiteTemplate: validTemplate()},
+		}
+		Expect(k8sClient.Create(ctx, suite)).To(Succeed())
+	}
 
-	newTerminalRun := func(suiteName string) *verikubedevv1alpha1.CheckRun {
+	newTerminalRun := func(ns, suiteName string) *verikubedevv1alpha1.CheckRun {
 		duration := &metav1.Duration{Duration: 50 * time.Millisecond}
 		bothPass := passResult("both-pass")
 		bothPass.Duration = duration
@@ -581,11 +587,13 @@ var _ = Describe("recordMetrics", func() {
 	}
 
 	It("aggregates per-check verdicts across pods into namespace-labeled gauges", func() {
+		ns := createNamespace()
 		suiteName := "suite-aggregate"
-		r := &CheckRunReconciler{}
+		newMetricsSuite(ns, suiteName)
+		r := &CheckRunReconciler{Client: k8sClient}
 		completed := time.Unix(1700000000, 0)
 
-		r.recordMetrics(newTerminalRun(suiteName), verikubedevv1alpha1.CheckRunFailed, 5*time.Second, completed)
+		r.recordMetrics(ctx, newTerminalRun(ns, suiteName), verikubedevv1alpha1.CheckRunFailed, 5*time.Second, completed)
 
 		value, ok := gaugeValue("verikube_check_last_result", checkMetricLabels(ns, suiteName, "both-pass"))
 		Expect(ok).To(BeTrue())
@@ -601,10 +609,12 @@ var _ = Describe("recordMetrics", func() {
 	})
 
 	It("observes per-check probe durations with the verdict label", func() {
+		ns := createNamespace()
 		suiteName := "suite-durations"
-		r := &CheckRunReconciler{}
+		newMetricsSuite(ns, suiteName)
+		r := &CheckRunReconciler{Client: k8sClient}
 
-		r.recordMetrics(newTerminalRun(suiteName), verikubedevv1alpha1.CheckRunFailed, 5*time.Second, time.Unix(1700000000, 0))
+		r.recordMetrics(ctx, newTerminalRun(ns, suiteName), verikubedevv1alpha1.CheckRunFailed, 5*time.Second, time.Unix(1700000000, 0))
 
 		count := histogramSampleCount("verikube_check_duration_seconds",
 			checkResultMetricLabels(ns, suiteName, "both-pass", metrics.ResultPass))
@@ -618,10 +628,12 @@ var _ = Describe("recordMetrics", func() {
 	})
 
 	It("leaves check gauges untouched for Error runs", func() {
+		ns := createNamespace()
 		suiteName := "suite-error"
-		r := &CheckRunReconciler{}
+		newMetricsSuite(ns, suiteName)
+		r := &CheckRunReconciler{Client: k8sClient}
 
-		r.recordMetrics(newTerminalRun(suiteName), verikubedevv1alpha1.CheckRunError, time.Second, time.Unix(1700000000, 0))
+		r.recordMetrics(ctx, newTerminalRun(ns, suiteName), verikubedevv1alpha1.CheckRunError, time.Second, time.Unix(1700000000, 0))
 
 		_, ok := gaugeValue("verikube_check_last_result", suiteMetricLabels(ns, suiteName))
 		Expect(ok).To(BeFalse())
@@ -630,6 +642,25 @@ var _ = Describe("recordMetrics", func() {
 		Expect(ok).To(BeFalse())
 		phaseLabels := suiteMetricLabels(ns, suiteName)
 		phaseLabels["phase"] = string(verikubedevv1alpha1.CheckRunError)
+		counter, ok := findMetric("verikube_checkruns_total", phaseLabels)
+		Expect(ok).To(BeTrue(), "terminal counter must still be recorded")
+		Expect(counter.GetCounter().GetValue()).To(BeNumerically(">=", 1))
+	})
+
+	It("does not resurrect gauges for a run that outlived its deleted suite", func() {
+		ns := createNamespace()
+		suiteName := "suite-deleted"
+		r := &CheckRunReconciler{Client: k8sClient}
+
+		r.recordMetrics(ctx, newTerminalRun(ns, suiteName), verikubedevv1alpha1.CheckRunFailed, 5*time.Second, time.Unix(1700000000, 0))
+
+		_, ok := gaugeValue("verikube_check_last_result", suiteMetricLabels(ns, suiteName))
+		Expect(ok).To(BeFalse())
+		_, ok = gaugeValue("verikube_checkrun_last_completion_timestamp_seconds",
+			suiteMetricLabels(ns, suiteName))
+		Expect(ok).To(BeFalse())
+		phaseLabels := suiteMetricLabels(ns, suiteName)
+		phaseLabels["phase"] = string(verikubedevv1alpha1.CheckRunFailed)
 		counter, ok := findMetric("verikube_checkruns_total", phaseLabels)
 		Expect(ok).To(BeTrue(), "terminal counter must still be recorded")
 		Expect(counter.GetCounter().GetValue()).To(BeNumerically(">=", 1))
