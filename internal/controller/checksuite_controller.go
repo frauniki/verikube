@@ -36,6 +36,7 @@ import (
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 
 	verikubev1alpha1 "github.com/frauniki/verikube/api/v1alpha1"
+	"github.com/frauniki/verikube/internal/metrics"
 )
 
 const (
@@ -74,7 +75,13 @@ func (r *CheckSuiteReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 
 	var suite verikubev1alpha1.CheckSuite
 	if err := r.Get(ctx, req.NamespacedName, &suite); err != nil {
-		return ctrl.Result{}, client.IgnoreNotFound(err)
+		if apierrors.IsNotFound(err) {
+			// Suite deleted: drop its state gauges so dashboards and alerts
+			// stop reporting on it. Counters stay (harmless to rate()).
+			metrics.DeleteSuite(req.Namespace, req.Name)
+			return ctrl.Result{}, nil
+		}
+		return ctrl.Result{}, err
 	}
 	now := r.now()
 

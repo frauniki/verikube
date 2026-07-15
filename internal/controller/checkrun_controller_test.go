@@ -37,6 +37,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	verikubedevv1alpha1 "github.com/frauniki/verikube/api/v1alpha1"
+	"github.com/frauniki/verikube/internal/metrics"
 	"github.com/frauniki/verikube/internal/runner"
 )
 
@@ -550,6 +551,88 @@ var _ = Describe("aggregate", func() {
 		Expect(summary.Failed).To(Equal(int32(1)))
 		Expect(failing).To(HaveLen(1))
 		Expect(failing[0]).To(ContainSubstring("c2"))
+	})
+})
+
+var _ = Describe("recordMetrics", func() {
+	const ns = "metrics-ns"
+
+	newTerminalRun := func(suiteName string) *verikubedevv1alpha1.CheckRun {
+		duration := &metav1.Duration{Duration: 50 * time.Millisecond}
+		bothPass := passResult("both-pass")
+		bothPass.Duration = duration
+		oneFails := failResult("one-fails")
+		oneFails.Duration = duration
+		return &verikubedevv1alpha1.CheckRun{
+			ObjectMeta: metav1.ObjectMeta{Name: "run-metrics", Namespace: ns},
+			Spec: verikubedevv1alpha1.CheckRunSpec{
+				SuiteRef: &corev1.LocalObjectReference{Name: suiteName},
+			},
+			Status: verikubedevv1alpha1.CheckRunStatus{
+				Runners: []verikubedevv1alpha1.RunnerStatus{{
+					Name: defaultRunnerName,
+					Pods: []verikubedevv1alpha1.PodResult{
+						{PodName: "p1", Checks: []verikubedevv1alpha1.CheckResult{bothPass, passResult("one-fails")}},
+						{PodName: "p2", Checks: []verikubedevv1alpha1.CheckResult{bothPass, oneFails}},
+					},
+				}},
+			},
+		}
+	}
+
+	It("aggregates per-check verdicts across pods into namespace-labeled gauges", func() {
+		suiteName := "suite-aggregate"
+		r := &CheckRunReconciler{}
+		completed := time.Unix(1700000000, 0)
+
+		r.recordMetrics(newTerminalRun(suiteName), verikubedevv1alpha1.CheckRunFailed, 5*time.Second, completed)
+
+		value, ok := gaugeValue("verikube_check_last_result", checkMetricLabels(ns, suiteName, "both-pass"))
+		Expect(ok).To(BeTrue())
+		Expect(value).To(Equal(1.0))
+		value, ok = gaugeValue("verikube_check_last_result", checkMetricLabels(ns, suiteName, "one-fails"))
+		Expect(ok).To(BeTrue())
+		Expect(value).To(Equal(0.0), "a check failing on any pod must read as failed")
+
+		value, ok = gaugeValue("verikube_checkrun_last_completion_timestamp_seconds",
+			suiteMetricLabels(ns, suiteName))
+		Expect(ok).To(BeTrue())
+		Expect(value).To(Equal(float64(completed.Unix())))
+	})
+
+	It("observes per-check probe durations with the verdict label", func() {
+		suiteName := "suite-durations"
+		r := &CheckRunReconciler{}
+
+		r.recordMetrics(newTerminalRun(suiteName), verikubedevv1alpha1.CheckRunFailed, 5*time.Second, time.Unix(1700000000, 0))
+
+		count := histogramSampleCount("verikube_check_duration_seconds",
+			checkResultMetricLabels(ns, suiteName, "both-pass", metrics.ResultPass))
+		Expect(count).To(Equal(uint64(2)), "both pods carried a duration")
+		count = histogramSampleCount("verikube_check_duration_seconds",
+			checkResultMetricLabels(ns, suiteName, "one-fails", metrics.ResultFail))
+		Expect(count).To(Equal(uint64(1)))
+		count = histogramSampleCount("verikube_check_duration_seconds",
+			checkResultMetricLabels(ns, suiteName, "one-fails", metrics.ResultPass))
+		Expect(count).To(BeZero(), "results without a duration must not be observed")
+	})
+
+	It("leaves check gauges untouched for Error runs", func() {
+		suiteName := "suite-error"
+		r := &CheckRunReconciler{}
+
+		r.recordMetrics(newTerminalRun(suiteName), verikubedevv1alpha1.CheckRunError, time.Second, time.Unix(1700000000, 0))
+
+		_, ok := gaugeValue("verikube_check_last_result", suiteMetricLabels(ns, suiteName))
+		Expect(ok).To(BeFalse())
+		_, ok = gaugeValue("verikube_checkrun_last_completion_timestamp_seconds",
+			suiteMetricLabels(ns, suiteName))
+		Expect(ok).To(BeFalse())
+		phaseLabels := suiteMetricLabels(ns, suiteName)
+		phaseLabels["phase"] = string(verikubedevv1alpha1.CheckRunError)
+		counter, ok := findMetric("verikube_checkruns_total", phaseLabels)
+		Expect(ok).To(BeTrue(), "terminal counter must still be recorded")
+		Expect(counter.GetCounter().GetValue()).To(BeNumerically(">=", 1))
 	})
 })
 

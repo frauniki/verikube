@@ -261,7 +261,7 @@ func (r *CheckRunReconciler) finish(ctx context.Context, run *verikubev1alpha1.C
 	if err := r.applyStatus(ctx, run, st); err != nil {
 		return ctrl.Result{}, err
 	}
-	r.recordMetrics(run, phase, completionTime.Sub(startTime.Time))
+	r.recordMetrics(run, phase, completionTime.Sub(startTime.Time), completionTime.Time)
 	if phase == verikubev1alpha1.CheckRunSucceeded {
 		r.Recorder.Eventf(run, nil, corev1.EventTypeNormal, "Succeeded", "Reconcile", "all checks passed")
 	}
@@ -484,28 +484,42 @@ func (r *CheckRunReconciler) buildJob(run *verikubev1alpha1.CheckRun, rn verikub
 	return job, nil
 }
 
-func (r *CheckRunReconciler) recordMetrics(run *verikubev1alpha1.CheckRun, phase verikubev1alpha1.CheckRunPhase, duration time.Duration) {
+func (r *CheckRunReconciler) recordMetrics(run *verikubev1alpha1.CheckRun, phase verikubev1alpha1.CheckRunPhase, duration time.Duration, completedAt time.Time) {
 	suite := ""
 	if run.Spec.SuiteRef != nil {
 		suite = run.Spec.SuiteRef.Name
 	}
-	metrics.CheckRunsTotal.WithLabelValues(suite, string(phase)).Inc()
-	metrics.CheckRunDuration.WithLabelValues(suite).Observe(duration.Seconds())
+	ns := run.Namespace
+	metrics.CheckRunsTotal.WithLabelValues(ns, suite, string(phase)).Inc()
+	metrics.CheckRunDuration.WithLabelValues(ns, suite).Observe(duration.Seconds())
 
+	// Error runs carry no check results; the gauges keep the last completed
+	// run's values so staleness alerting can notice the gap.
 	if phase != verikubev1alpha1.CheckRunSucceeded && phase != verikubev1alpha1.CheckRunFailed {
 		return
 	}
+	// A check passes only if it passed on every pod that ran it. With
+	// concurrencyPolicy Allow, runs can complete out of order and the last
+	// one to finish wins the gauges.
+	lastResults := map[string]bool{}
 	for _, rs := range run.Status.Runners {
 		for _, pod := range rs.Pods {
 			for _, res := range pod.Checks {
-				result := "pass"
+				result := metrics.ResultPass
 				if !res.Passed {
-					result = "fail"
+					result = metrics.ResultFail
 				}
-				metrics.CheckResultTotal.WithLabelValues(suite, res.Name, result).Inc()
+				metrics.CheckResultTotal.WithLabelValues(ns, suite, res.Name, result).Inc()
+				if res.Duration != nil {
+					metrics.CheckDuration.WithLabelValues(ns, suite, res.Name, result).Observe(res.Duration.Seconds())
+				}
+				passed, seen := lastResults[res.Name]
+				lastResults[res.Name] = res.Passed && (!seen || passed)
 			}
 		}
 	}
+	metrics.SetLastResults(ns, suite, lastResults)
+	metrics.CheckRunLastCompletion.WithLabelValues(ns, suite).Set(float64(completedAt.Unix()))
 }
 
 func (r *CheckRunReconciler) runnerServiceAccount() string {

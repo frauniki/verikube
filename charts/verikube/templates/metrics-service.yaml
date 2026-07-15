@@ -31,6 +31,10 @@ spec:
     - port: metrics
       scheme: https
       bearerTokenFile: /var/run/secrets/kubernetes.io/serviceaccount/token
+      # verikube metrics carry their own namespace label (the CheckSuite's
+      # namespace); without honorLabels Prometheus renames it to
+      # exported_namespace and every documented query breaks.
+      honorLabels: true
       tlsConfig:
         insecureSkipVerify: true
 {{- end }}
