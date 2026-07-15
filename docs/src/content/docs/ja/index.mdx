@@ -20,28 +20,22 @@ import { Card, CardGrid, LinkCard } from '@astrojs/starlight/components';
 
 <CardGrid stagger>
 	<Card title="宣言的 & GitOps フレンドリー" icon="seti:git">
-		チェックは CRD です。スイートは Git に、結果は `.status` に。外部の
-		状態も別のデータベースも不要です。
+		チェックは CRD です。スイートは Git に、結果は `.status` に。外部の状態も別のデータベースも不要です。
 	</Card>
 	<Card title="意味のある場所から実行" icon="setting">
-		`nodeSelector`・`tolerations`・`topologySpread` で runner pod を
-		配置 — ワークロードが実際に動くノードから到達性を検証します。
+		`nodeSelector`・`tolerations`・`topologySpread` で runner pod を配置 — ワークロードが実際に動くノードから到達性を検証します。
 	</Card>
 	<Card title="3 種類の probe" icon="puzzle">
-		TCP 接続、HTTP(ステータスコード・ヘッダー)、標準の gRPC Health
-		Checking Protocol。
+		TCP 接続、HTTP(ステータスコード・ヘッダー)、標準の gRPC Health Checking Protocol。
 	</Card>
 	<Card title="ネガティブテスト" icon="warning">
-		`expect: Failure` で接続が**失敗する**ことを検証 — セキュリティ
-		グループやネットワークポリシーが本当に遮断しているかを確かめます。
+		`expect: Failure` で接続が**失敗する**ことを検証 — セキュリティグループやネットワークポリシーが本当に遮断しているかを確かめます。
 	</Card>
 	<Card title="cron スケジュール + run-now" icon="pencil">
-		標準の 5 フィールド cron、またはアノテーション 1 つでアドホックに
-		実行。
+		標準の 5 フィールド cron、またはアノテーション 1 つでアドホックに実行。
 	</Card>
 	<Card title="Prometheus メトリクス" icon="magnifier">
-		check ごとの pass/fail 状態、probe レイテンシのヒストグラム、run
-		カウンター — そのまま Grafana で可視化できます。
+		check ごとの pass/fail 状態、probe レイテンシのヒストグラム、run カウンター — そのまま Grafana で可視化できます。
 	</Card>
 </CardGrid>
 
@@ -51,23 +45,11 @@ import { Card, CardGrid, LinkCard } from '@astrojs/starlight/components';
 
 <CardGrid>
 	<LinkCard
-		title="nodegroup X の pod からデータベースに届く?"
-		description="特定ノードに固定した runner pod からの TCP チェック。"
-		href="/verikube/ja/guides/writing-checks/"
-	/>
+		title="nodegroup X の pod からデータベースに届く?" description="特定ノードに固定した runner pod からの TCP チェック。" href="/verikube/ja/guides/writing-checks/" />
 	<LinkCard
-		title="LB 越しのエンドポイントは正しい Host ヘッダーで 200 を返す?"
-		description="カスタムヘッダーと期待ステータスコード付きの HTTP チェック。"
-		href="/verikube/ja/guides/writing-checks/"
-	/>
+		title="LB 越しのエンドポイントは正しい Host ヘッダーで 200 を返す?" description="カスタムヘッダーと期待ステータスコード付きの HTTP チェック。" href="/verikube/ja/guides/writing-checks/" />
 	<LinkCard
-		title="gRPC バックエンドは SERVING を報告している?"
-		description="標準の gRPC Health Checking Protocol によるチェック。"
-		href="/verikube/ja/guides/writing-checks/"
-	/>
+		title="gRPC バックエンドは SERVING を報告している?" description="標準の gRPC Health Checking Protocol によるチェック。" href="/verikube/ja/guides/writing-checks/" />
 	<LinkCard
-		title="セキュリティグループは本当に遮断できている?"
-		description="ネガティブテスト: 接続が失敗したときだけ pass するチェック。"
-		href="/verikube/ja/guides/writing-checks/"
-	/>
+		title="セキュリティグループは本当に遮断できている?" description="ネガティブテスト: 接続が失敗したときだけ pass するチェック。" href="/verikube/ja/guides/writing-checks/" />
 </CardGrid>
