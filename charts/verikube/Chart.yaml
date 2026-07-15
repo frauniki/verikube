@@ -4,8 +4,8 @@ description: >-
   verikube operator: declarative network checks for Kubernetes via
   CheckSuite / CheckRun CRDs.
 type: application
-version: 0.1.0
-appVersion: "0.1.0"
+version: 0.1.0 # x-release-please-version
+appVersion: "0.1.0" # x-release-please-version
 home: https://github.com/frauniki/verikube
 sources:
   - https://github.com/frauniki/verikube
