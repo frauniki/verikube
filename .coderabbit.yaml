@@ -1,0 +1,88 @@
+# yaml-language-server: $schema=https://storage.googleapis.com/coderabbit_public_assets/schema.v2.json
+language: "ja"
+
+reviews:
+  profile: chill
+  high_level_summary: true
+  poem: false
+  collapse_walkthrough: true
+
+  auto_review:
+    enabled: true
+    drafts: false
+    # release-please のリリースPRはレビュー不要
+    ignore_title_keywords:
+      - "chore(main): release"
+
+  path_filters:
+    # 生成物はレビュー対象外
+    - "!api/**/zz_generated.deepcopy.go"
+    - "!config/crd/bases/**"
+    - "!charts/verikube/templates/crds/**"
+    - "!go.sum"
+    - "!bin/**"
+
+  path_instructions:
+    - path: "api/v1alpha1/**"
+      instructions: |
+        CRD の型定義。フィールドの追加/変更時は kubebuilder マーカー
+        (validation, printcolumn) と CEL ルール(check type の oneof)の
+        整合を確認する。型を変更したのに `make manifests` /
+        `make helm-sync-crds` の生成物(config/crd/bases,
+        charts/verikube/templates/crds)が同じ PR で更新されていなければ指摘する。
+    - path: "internal/controller/**"
+      instructions: |
+        reconciler は冪等であること。CheckRun の status 更新は
+        server-side apply の契約(runner pods が .status.runners を
+        SSA で書き、operator が集約する)を壊さないこと。
+        requeue とエラーの返し方(一時的エラーは return err、
+        恒久的エラーは condition を立てて requeue しない)に注意。
+    - path: "internal/metrics/**"
+      instructions: |
+        カーディナリティ方針: メトリクスラベルは namespace/suite/check に
+        限定し、runner 名・pod 名をラベルに入れない。
+        gauge 系は suite 削除・check リネームで stale series が
+        残らないこと(DeletePartialMatch)。
+    - path: "internal/checker/**"
+      instructions: |
+        checker は Checker インターフェースの実装。新しい check type は
+        CheckSpec のフィールドと CEL oneof ルールも揃っているか確認する。
+        古い runner が未知の check type を明示的な失敗として報告する
+        後方互換の挙動を壊さないこと。
+    - path: "charts/verikube/**"
+      instructions: |
+        新機能のトグルは default off で、デフォルト値での
+        `helm template` 出力が変わらないこと。values.yaml に追加した
+        キーはコメントで用途を説明する。templates/crds/ は生成物なので
+        手編集を見つけたら指摘する。
+    - path: ".github/workflows/**"
+      instructions: |
+        コミットメッセージは Conventional Commits(release-please が
+        バージョニングに使用)。action は SHA ではなくバージョンタグで
+        固定している方針。
+
+  tools:
+    golangci-lint:
+      enabled: true
+    actionlint:
+      enabled: true
+    yamllint:
+      enabled: true
+    markdownlint:
+      enabled: true
+    shellcheck:
+      enabled: true
+    hadolint:
+      enabled: true
+    gitleaks:
+      enabled: true
+
+  pre_merge_checks:
+    title:
+      mode: warning
+      requirements: |
+        Conventional Commits 形式(feat:, fix:, docs:, chore: など)。
+        release-please がこの形式からリリースノートとバージョンを生成する。
+
+chat:
+  auto_reply: true
