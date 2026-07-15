@@ -498,15 +498,6 @@ func (r *CheckRunReconciler) recordMetrics(ctx context.Context, run *verikubev1a
 	if phase != verikubev1alpha1.CheckRunSucceeded && phase != verikubev1alpha1.CheckRunFailed {
 		return
 	}
-	// A run can outlive its suite. The suite controller drops the gauges
-	// exactly once, on the deletion event; writing results for a deleted
-	// suite here would resurrect them with nothing left to clean them up.
-	if run.Spec.SuiteRef != nil {
-		if err := r.Get(ctx, client.ObjectKey{Namespace: ns, Name: suite},
-			&verikubev1alpha1.CheckSuite{}); apierrors.IsNotFound(err) {
-			return
-		}
-	}
 	// A check passes only if it passed on every pod that ran it. With
 	// concurrencyPolicy Allow, runs can complete out of order and the last
 	// one to finish wins the gauges.
@@ -529,6 +520,20 @@ func (r *CheckRunReconciler) recordMetrics(ctx context.Context, run *verikubev1a
 	}
 	metrics.SetLastResults(ns, suite, lastResults)
 	metrics.CheckRunLastCompletion.WithLabelValues(ns, suite).Set(float64(completedAt.Unix()))
+
+	// A run can outlive its suite, and the suite controller drops these
+	// gauges exactly once, on the deletion event. Checking existence after
+	// writing closes the race with that cleanup: both controllers read the
+	// same informer cache, so if the suite is still visible here, its
+	// deletion event — and the cleanup it triggers — is ordered after the
+	// writes above; if it is already gone, drop the gauges ourselves.
+	if run.Spec.SuiteRef == nil {
+		return
+	}
+	if err := r.Get(ctx, client.ObjectKey{Namespace: ns, Name: suite},
+		&verikubev1alpha1.CheckSuite{}); apierrors.IsNotFound(err) {
+		metrics.DeleteSuite(ns, suite)
+	}
 }
 
 func (r *CheckRunReconciler) runnerServiceAccount() string {
